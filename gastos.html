@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Gastos & Cuotas</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: "#004d64", "primary-light": "#006684",
+        "on-primary": "#ffffff", "primary-container": "#bee9ff",
+        tertiary: "#005212", "tertiary-container": "#1a6c23",
+        surface: "#f8f9fa", "surface-low": "#f3f4f5",
+        "surface-high": "#e7e8e9", "surface-highest": "#e1e3e4",
+        "surface-white": "#ffffff", outline: "#70787e",
+        "outline-variant": "#bfc8cd", "on-surface": "#191c1d",
+        "on-surface-variant": "#3f484d",
+      },
+      fontFamily: { headline: ["Manrope"], body: ["Inter"] },
+      borderRadius: { DEFAULT: "0.125rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" },
+    },
+  },
+}
+</script>
+<style>
+.material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+.filled { font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; }
+.modal-enter { animation: slideUp .25s ease; }
+@keyframes slideUp { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+input, select { font-family: 'Inter', sans-serif; }
+</style>
+</head>
+<body class="bg-surface text-on-surface font-body min-h-screen pb-24 md:pb-0">
+
+<!-- Header -->
+<header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-5 py-4 max-w-6xl mx-auto">
+    <div class="font-headline font-extrabold text-xl text-primary tracking-tight">Gastos & Cuotas</div>
+    <nav class="hidden md:flex items-center gap-6">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-link active font-headline font-bold text-sm tracking-tight transition-colors">Dashboard</button>
+      <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-link font-headline font-bold text-sm tracking-tight text-slate-400 hover:text-primary transition-colors">Analytics</button>
+      <button onclick="switchTab('history')" id="nav-history" class="nav-link font-headline font-bold text-sm tracking-tight text-slate-400 hover:text-primary transition-colors">History</button>
+    </nav>
+    <div class="flex items-center gap-3">
+      <span id="sync-indicator" class="hidden items-center gap-1.5 text-xs font-bold text-outline uppercase tracking-widest">
+        <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>Sync...
+      </span>
+      <button onclick="openConfig()" class="text-slate-400 hover:text-primary transition-colors">
+        <span class="material-symbols-outlined text-xl">settings</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-6 md:flex md:gap-8">
+
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden md:flex flex-col w-56 sticky top-24 h-fit gap-1 shrink-0">
+    <div class="mb-4">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="material-symbols-outlined text-primary text-lg">credit_card</span>
+        <span class="font-headline font-black text-primary text-base">Tarjetas</span>
+      </div>
+      <p class="text-xs text-slate-400">Medios de pago</p>
+    </div>
+    <div id="sidebar-tarjetas" class="flex flex-col gap-0.5"></div>
+    <div class="mt-auto pt-4 border-t border-slate-100 flex flex-col gap-1 mt-6">
+      <button onclick="switchTab('analytics')" class="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-primary text-xs transition-colors">
+        <span class="material-symbols-outlined text-sm">bar_chart</span>Analytics
+      </button>
+      <button onclick="switchTab('history')" class="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-primary text-xs transition-colors">
+        <span class="material-symbols-outlined text-sm">history</span>Historial
+      </button>
+    </div>
+  </aside>
+
+  <!-- Content area -->
+  <div class="flex-1 min-w-0">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div id="tab-dashboard" class="tab-content active space-y-6">
+
+      <!-- Month nav + sync -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h1 id="month-label" class="font-headline font-extrabold text-2xl text-on-surface tracking-tight"></h1>
+          <div class="flex items-center bg-surface-low rounded-full px-1 py-0.5">
+            <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-surface-high rounded-full transition-colors">
+              <span class="material-symbols-outlined text-on-surface-variant text-lg">chevron_left</span>
+            </button>
+            <button onclick="changeMonth(1)" class="p-1.5 hover:bg-surface-high rounded-full transition-colors">
+              <span class="material-symbols-outlined text-on-surface-variant text-lg">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-primary">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Base</p>
+          <p id="sum-total" class="font-headline font-extrabold text-xl text-primary mt-2">$0</p>
+          <p id="sum-items" class="text-[10px] text-outline mt-1">0 ítems</p>
+        </div>
+        <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-outline-variant">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Con Impuesto</p>
+          <p id="sum-imp" class="font-headline font-extrabold text-xl text-on-surface mt-2">$0</p>
+          <p id="sum-imp-extra" class="text-[10px] text-outline mt-1">+$0</p>
+        </div>
+        <div class="bg-emerald-50 p-4 rounded-xl shadow-sm border-l-4 border-tertiary">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-tertiary">Últimas</p>
+          <div class="flex items-center justify-between mt-2">
+            <p id="sum-last" class="font-headline font-extrabold text-xl text-tertiary">0</p>
+            <span class="material-symbols-outlined filled text-tertiary text-lg">task_alt</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div id="filters" class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide"></div>
+
+      <!-- List -->
+      <div id="list-container" class="space-y-6"></div>
+    </div>
+
+    <!-- ═══ ANALYTICS ═══ -->
+    <div id="tab-analytics" class="tab-content space-y-6">
+      <h1 class="font-headline font-extrabold text-2xl text-on-surface tracking-tight">Analytics</h1>
+
+      <!-- KPI cards -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-primary">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Promedio mensual</p>
+          <p id="an-promedio" class="font-headline font-extrabold text-xl text-primary mt-2">$0</p>
+          <p id="an-promedio-sub" class="text-[10px] text-outline mt-1">desde el primer mes</p>
+        </div>
+        <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-outline-variant">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Mes más caro</p>
+          <p id="an-max-mes" class="font-headline font-extrabold text-lg text-on-surface mt-2">—</p>
+          <p id="an-max-val" class="text-[10px] text-outline mt-1">—</p>
+        </div>
+        <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-primary-light">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Tarjeta más usada</p>
+          <p id="an-tarjeta" class="font-headline font-extrabold text-lg text-on-surface mt-2">—</p>
+          <p id="an-tarjeta-sub" class="text-[10px] text-outline mt-1">—</p>
+        </div>
+        <div class="bg-emerald-50 p-4 rounded-xl shadow-sm border-l-4 border-tertiary">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-tertiary">Próximo mes</p>
+          <p id="an-proximo" class="font-headline font-extrabold text-xl text-tertiary mt-2">$0</p>
+          <p id="an-proximo-sub" class="text-[10px] text-tertiary/60 mt-1">proyectado</p>
+        </div>
+      </div>
+
+      <!-- Gráfico mensual -->
+      <div class="bg-surface-white p-5 rounded-xl shadow-sm">
+        <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Gasto por mes</p>
+        <div style="height:220px;position:relative;">
+          <canvas id="chart-mensual"></canvas>
+        </div>
+      </div>
+
+      <!-- Proyección próximos meses -->
+      <div class="bg-surface-white p-5 rounded-xl shadow-sm">
+        <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Proyección — próximos 3 meses</p>
+        <div id="an-proyeccion" class="space-y-3"></div>
+      </div>
+
+      <!-- Necesario vs Opcional -->
+      <div class="bg-surface-white p-5 rounded-xl shadow-sm">
+        <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Necesario vs Opcional (mes actual)</p>
+        <div id="an-nec-opt" class="space-y-3"></div>
+      </div>
+
+      <!-- Por categoría -->
+      <div class="bg-surface-white p-5 rounded-xl shadow-sm">
+        <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Por categoría (mes actual)</p>
+        <div id="an-por-cat" class="space-y-3"></div>
+      </div>
+
+      <!-- Por tarjeta -->
+      <div class="bg-surface-white p-5 rounded-xl shadow-sm">
+        <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Distribución por tarjeta</p>
+        <div id="an-por-tarjeta" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- ═══ HISTORY ═══ -->
+    <div id="tab-history" class="tab-content space-y-4">
+      <h1 class="font-headline font-extrabold text-2xl text-on-surface tracking-tight">Historial</h1>
+      <p class="text-sm text-outline">Gastos completados y todos los meses registrados.</p>
+      <div id="history-container" class="space-y-4"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- FAB -->
+<button onclick="openModal()" class="fixed bottom-20 right-5 md:bottom-10 md:right-10 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-40">
+  <span class="material-symbols-outlined text-2xl">add</span>
+</button>
+
+<!-- Bottom nav (mobile) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-2 py-2 pb-safe md:hidden bg-white shadow-lg border-t border-slate-100 z-50">
+  <button onclick="switchTab('dashboard')" id="mob-dashboard" class="mob-nav active flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-primary bg-primary/10 transition-all">
+    <span class="material-symbols-outlined filled text-xl">grid_view</span>
+    <span class="text-[9px] font-bold uppercase tracking-widest">Home</span>
+  </button>
+  <button onclick="switchTab('analytics')" id="mob-analytics" class="mob-nav flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-slate-400 transition-all">
+    <span class="material-symbols-outlined text-xl">bar_chart</span>
+    <span class="text-[9px] font-bold uppercase tracking-widest">Analytics</span>
+  </button>
+  <button onclick="switchTab('history')" id="mob-history" class="mob-nav flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-slate-400 transition-all">
+    <span class="material-symbols-outlined text-xl">history</span>
+    <span class="text-[9px] font-bold uppercase tracking-widest">History</span>
+  </button>
+</nav>
+
+<!-- Modal gasto -->
+<div id="overlay" class="fixed inset-0 bg-black/30 z-[200] flex items-end md:items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200" onclick="closeOnOverlay(event)">
+  <div class="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-lg p-6 pb-8 modal-enter max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-5">
+      <h2 id="modal-title" class="font-headline font-bold text-lg">Nuevo gasto</h2>
+      <button onclick="closeModal()" class="w-8 h-8 bg-surface-low rounded-full flex items-center justify-center text-outline hover:bg-surface-high transition-colors">
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Descripción</label>
+        <input id="f-desc" type="text" placeholder="ej: Netflix, Perfume..." class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Tarjeta</label>
+          <select id="f-tarjeta" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors bg-white"></select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Monto cuota ($)</label>
+          <input id="f-monto" type="number" placeholder="0" min="0" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors">
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Mes actual</label>
+          <input id="f-mes" type="text" placeholder="03/2026" maxlength="7" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Cuota actual</label>
+          <input id="f-cuota-actual" type="number" placeholder="1" min="1" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Total cuotas</label>
+          <input id="f-cuota-total" type="number" placeholder="12" min="1" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Categoría</label>
+          <select id="f-categoria" onchange="onCategoriaChange()" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors bg-white"></select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Tipo</label>
+          <div class="flex rounded-lg overflow-hidden border border-outline-variant">
+            <button type="button" id="btn-necesario" onclick="setNecesario(true)" class="flex-1 py-2.5 text-xs font-bold transition-all">Necesario</button>
+            <button type="button" id="btn-opcional" onclick="setNecesario(false)" class="flex-1 py-2.5 text-xs font-bold transition-all">Opcional</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="btn-impuesto" onclick="toggleImpuesto()" class="w-full flex items-center gap-3 border-2 border-outline-variant rounded-lg px-3 py-2.5 transition-all">
+        <div id="tog-box" class="w-5 h-5 rounded border-2 border-outline-variant flex items-center justify-center transition-all">
+          <span id="tog-icon" class="text-white text-xs font-bold"></span>
+        </div>
+        <span class="text-sm text-on-surface-variant">Aplica impuesto / sello (1%)</span>
+      </button>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeModal()" class="px-4 py-2.5 text-sm font-semibold text-outline border border-outline-variant rounded-lg hover:bg-surface-low transition-colors">Cancelar</button>
+      <button onclick="saveGasto()" class="flex-1 py-2.5 text-sm font-bold bg-primary text-white rounded-lg hover:opacity-90 transition-opacity">Guardar</button>
+    </div>
+    <div id="edit-actions" class="hidden mt-3">
+      <button onclick="deleteGasto()" class="w-full py-2.5 text-sm font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">Eliminar este gasto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal config tarjetas -->
+<div id="overlay-config" class="fixed inset-0 bg-black/30 z-[200] flex items-end md:items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200" onclick="closeOnOverlayConfig(event)">
+  <div class="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-lg p-6 pb-8 modal-enter max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-headline font-bold text-lg">Tarjetas & medios</h2>
+      <button onclick="closeConfig()" class="w-8 h-8 bg-surface-low rounded-full flex items-center justify-center text-outline hover:bg-surface-high">
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+    </div>
+    <div id="config-list" class="mb-4"></div>
+    <div class="flex gap-2">
+      <input id="nueva-tarjeta" type="text" placeholder="Nueva tarjeta..." class="flex-1 border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
+      <button onclick="agregarTarjeta()" class="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:opacity-90">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Categorías ──
+const CATEGORIAS = [
+  { nombre:'Hogar',        emoji:'🏠', necesario:true,  color:'bg-blue-100 text-blue-800' },
+  { nombre:'Educación',    emoji:'🎓', necesario:true,  color:'bg-indigo-100 text-indigo-800' },
+  { nombre:'Salud',        emoji:'🏥', necesario:true,  color:'bg-green-100 text-green-700' },
+  { nombre:'Transporte',   emoji:'🚗', necesario:true,  color:'bg-cyan-100 text-cyan-800' },
+  { nombre:'Alimentación', emoji:'🍔', necesario:true,  color:'bg-orange-100 text-orange-800' },
+  { nombre:'Ocio',         emoji:'🎮', necesario:false, color:'bg-purple-100 text-purple-800' },
+  { nombre:'Ropa',         emoji:'👕', necesario:false, color:'bg-pink-100 text-pink-800' },
+  { nombre:'Otros',        emoji:'📦', necesario:false, color:'bg-slate-100 text-slate-600' },
+];
+
+function getCatData(nombre) { return CATEGORIAS.find(c=>c.nombre===nombre) || CATEGORIAS[CATEGORIAS.length-1]; }
+
+let necesarioActivo = true;
+
+function populateCategorias() {
+  const sel = document.getElementById('f-categoria');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = CATEGORIAS.map(c=>`<option value="${c.nombre}">${c.emoji} ${c.nombre}</option>`).join('');
+  if (cur && CATEGORIAS.find(c=>c.nombre===cur)) sel.value = cur;
+}
+
+function onCategoriaChange() {
+  const cat = document.getElementById('f-categoria').value;
+  const data = getCatData(cat);
+  setNecesario(data.necesario);
+}
+
+function setNecesario(val) {
+  necesarioActivo = val;
+  const bN = document.getElementById('btn-necesario');
+  const bO = document.getElementById('btn-opcional');
+  if (val) {
+    bN.className = 'flex-1 py-2.5 text-xs font-bold transition-all bg-primary text-white';
+    bO.className = 'flex-1 py-2.5 text-xs font-bold transition-all text-on-surface-variant';
+  } else {
+    bO.className = 'flex-1 py-2.5 text-xs font-bold transition-all bg-purple-500 text-white';
+    bN.className = 'flex-1 py-2.5 text-xs font-bold transition-all text-on-surface-variant';
+  }
+}
+
+// ── Config ──
+const API = 'https://script.google.com/macros/s/AKfycbzRu7vKHOzuQ6kXQNSrvo_0T-nyhgBQFOxVKJHiP_8gTouYbMlAWIVsD-zNSFI_ceBw/exec';
+const TARJETAS_DEFAULT = ['BBVA (Vieja)','BBVA Visa Black','Mastercard Black','Mercadopago','Deudas / Amigos'];
+const TCARD_COLORS = ['bg-indigo-100 text-indigo-800','bg-blue-100 text-blue-800','bg-pink-100 text-pink-800','bg-emerald-100 text-emerald-700','bg-amber-100 text-amber-800','bg-purple-100 text-purple-800','bg-rose-100 text-rose-800','bg-teal-100 text-teal-800'];
+let TARJETAS = JSON.parse(localStorage.getItem('tarjetas_config') || 'null') || [...TARJETAS_DEFAULT];
+let gastos = [], currentYear, currentMonth, editingId = null, activeFilter = 'Todos', impuestoActivo = false;
+let chartMensual = null;
+
+// ── Tabs ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(el => { el.classList.remove('active','text-primary','border-b-2','border-primary'); el.classList.add('text-slate-400'); });
+  document.querySelectorAll('.mob-nav').forEach(el => { el.classList.remove('active','text-primary','bg-primary/10'); el.classList.add('text-slate-400'); });
+  const nav = document.getElementById('nav-' + tab);
+  if (nav) { nav.classList.add('text-primary','border-b-2','border-primary'); nav.classList.remove('text-slate-400'); }
+  const mob = document.getElementById('mob-' + tab);
+  if (mob) { mob.classList.add('text-primary','bg-primary/10'); mob.classList.remove('text-slate-400'); }
+  if (tab === 'analytics') renderAnalytics();
+  if (tab === 'history') renderHistory();
+}
+
+// ── Helpers ──
+function uid() { return Math.random().toString(36).slice(2,9); }
+function fmtPeso(n) { return '$' + Math.round(n).toLocaleString('es-AR'); }
+function monthName(m, y) { return ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][m-1] + ' ' + y; }
+function monthShort(m, y) { return ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][m-1] + ' ' + (y+'').slice(2); }
+function parseMes(str) { const m=(str||'').match(/^(\d{2})\/(\d{4})$/); if(!m)return null; return {month:parseInt(m[1]),year:parseInt(m[2])}; }
+function addMonths(m, y, n) { let mo=m+n, yr=y; while(mo>12){mo-=12;yr++;} while(mo<1){mo+=12;yr--;} return {month:mo,year:yr}; }
+function getTagColor(t) { return TCARD_COLORS[TARJETAS.indexOf(t) % TCARD_COLORS.length] || TCARD_COLORS[0]; }
+
+function parsearMesInicio(val) {
+  const s = String(val);
+  if (/^\d{2}\/\d{4}$/.test(s)) return s;
+  const iso = s.match(/^(\d{4})-(\d{2})-\d{2}/);
+  if (iso) return iso[2] + '/' + iso[1];
+  const largo = s.match(/\b(\w{3})\s+(\d{1,2})\s+(\d{4})\b/);
+  if (largo) { const ms={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'}; const mv=ms[largo[1]]; if(mv)return mv+'/'+largo[3]; }
+  const d = new Date(s);
+  if (!isNaN(d)) return String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+  return s;
+}
+
+function cuotaEnMes(g, year, month) {
+  const ini = parseMes(g.mesInicio);
+  if (!ini) return null;
+  const diff = (year-ini.year)*12 + (month-ini.month) + 1;
+  if (diff < 1 || diff > g.cuotaTotal) return null;
+  return diff;
+}
+
+function mesInicioDesdeCuotaActual(mesStr, cuotaActual) {
+  const p = parseMes(mesStr);
+  if (!p) return mesStr;
+  let m = p.month - (cuotaActual-1), y = p.year;
+  while (m<1){m+=12;y--;}
+  return String(m).padStart(2,'0')+'/'+y;
+}
+
+function getActiveItems(yr, mo) {
+  const y = yr || currentYear, m = mo || currentMonth;
+  return gastos.map(g => { const c=cuotaEnMes(g,y,m); return c?{...g,cuota:c}:null; }).filter(Boolean);
+}
+
+// ── API ──
+function loadData() {
+  return new Promise(resolve => {
+    const cbName = 'cb_'+Date.now();
+    const script = document.createElement('script');
+    window[cbName] = function(raw) {
+      delete window[cbName]; document.body.removeChild(script);
+      gastos = raw.map(r => ({
+        id: String(r.id), desc: String(r.desc), tarjeta: String(r.tarjeta),
+        monto: parseFloat(r.monto)||0, mesInicio: parsearMesInicio(r.mesInicio),
+        cuotaActual: parseInt(r.cuotaActual)||1, cuotaTotal: parseInt(r.cuotaTotal)||1,
+        impuesto: r.impuesto===true||r.impuesto==='true'||r.impuesto==='TRUE',
+        categoria: String(r.categoria||'Otros'),
+        necesario: r.necesario===true||r.necesario==='true'||r.necesario==='TRUE',
+      }));
+      resolve();
+    };
+    script.onerror = () => { delete window[cbName]; document.body.removeChild(script); alert('No se pudo conectar. Revisá tu conexión.'); resolve(); };
+    script.src = API + '?callback=' + cbName + '&t=' + Date.now();
+    document.body.appendChild(script);
+  });
+}
+
+async function apiSave(gasto) {
+  showSync(true);
+  await fetch(API, { method:'POST', body: JSON.stringify({action:'save', gasto}) });
+  showSync(false);
+}
+
+async function apiDelete(id) {
+  showSync(true);
+  await fetch(API, { method:'POST', body: JSON.stringify({action:'delete', id}) });
+  showSync(false);
+}
+
+function showSync(on) {
+  const el = document.getElementById('sync-indicator');
+  el.classList.toggle('hidden', !on);
+  el.classList.toggle('flex', on);
+}
+
+// ── Render Dashboard ──
+function render() {
+  document.getElementById('month-label').textContent = monthName(currentMonth, currentYear);
+  const allItems = getActiveItems();
+  const total = allItems.reduce((s,i)=>s+i.monto,0);
+  const totalImp = allItems.reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
+  const lastCount = allItems.filter(i=>i.cuota===i.cuotaTotal).length;
+  document.getElementById('sum-total').textContent = fmtPeso(total);
+  document.getElementById('sum-items').textContent = allItems.length + ' ítem' + (allItems.length!==1?'s':'');
+  document.getElementById('sum-imp').textContent = fmtPeso(totalImp);
+  document.getElementById('sum-imp-extra').textContent = '+' + fmtPeso(totalImp-total) + ' en sellos';
+  document.getElementById('sum-last').textContent = lastCount;
+
+  // Filters
+  let items = allItems;
+  const hasFilter = TARJETAS.filter(t=>allItems.some(i=>i.tarjeta===t));
+  const fEl = document.getElementById('filters');
+  fEl.innerHTML = '';
+  ['Todos',...hasFilter].forEach(t => {
+    const b = document.createElement('button');
+    const isActive = activeFilter === t;
+    b.className = `px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${isActive ? 'bg-primary text-white' : 'bg-surface-highest text-on-surface-variant hover:bg-surface-high'}`;
+    b.textContent = t === 'Todos' ? 'Todas' : t;
+    b.onclick = () => { activeFilter = t; render(); };
+    fEl.appendChild(b);
+  });
+  if (activeFilter !== 'Todos') items = items.filter(i=>i.tarjeta===activeFilter);
+
+  // Sidebar tarjetas
+  const sb = document.getElementById('sidebar-tarjetas');
+  sb.innerHTML = '';
+  const sbAll = document.createElement('button');
+  sbAll.className = `flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all w-full text-left ${activeFilter==='Todos'?'bg-white text-primary shadow-sm':'text-slate-500 hover:bg-surface-low'}`;
+  sbAll.innerHTML = `<span class="material-symbols-outlined text-base filled">credit_card</span>Todas`;
+  sbAll.onclick = () => { activeFilter='Todos'; render(); };
+  sb.appendChild(sbAll);
+  hasFilter.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = `flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all w-full text-left ${activeFilter===t?'bg-white text-primary shadow-sm font-semibold':'text-slate-500 hover:bg-surface-low font-medium'}`;
+    btn.innerHTML = `<span class="material-symbols-outlined text-base">payments</span>${t}`;
+    btn.onclick = () => { activeFilter=t; render(); };
+    sb.appendChild(btn);
+  });
+
+  // List
+  const container = document.getElementById('list-container');
+  if (!items.length) {
+    container.innerHTML = `<div class="text-center py-16 text-outline"><span class="material-symbols-outlined text-4xl block mb-2">celebration</span><p class="text-sm">Sin gastos activos en ${monthName(currentMonth,currentYear)}</p></div>`;
+    return;
+  }
+  const groups = {};
+  TARJETAS.forEach(t=>{groups[t]=[];});
+  items.forEach(i=>{ if(groups[i.tarjeta]) groups[i.tarjeta].push(i); });
+  let html = '';
+  TARJETAS.forEach(t => {
+    const list = groups[t];
+    if (!list.length) return;
+    const gtotal = list.reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
+    const tagColor = getTagColor(t);
+    html += `<div class="space-y-3">
+      <div class="flex items-center justify-between px-1">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-base">credit_card</span>
+          <h2 class="font-headline font-bold text-base">${t}</h2>
+        </div>
+        <span class="font-bold text-primary text-sm">${fmtPeso(gtotal)}</span>
+      </div>
+      <div class="space-y-2">`;
+    list.forEach(i => {
+      const isLast = i.cuota===i.cuotaTotal;
+      const mImp = i.impuesto ? i.monto*1.01 : i.monto;
+      const catData = getCatData(i.categoria||'Otros');
+      const necBadge = i.necesario
+        ? '<span class="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold">Necesario</span>'
+        : '<span class="text-[9px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded-full font-bold">Opcional</span>';
+      html += `<div class="flex items-center justify-between p-4 ${isLast?'bg-emerald-50 border border-emerald-100':'bg-surface-white'} rounded-xl hover:translate-x-0.5 transition-transform cursor-pointer shadow-sm" onclick="editGasto('${i.id}')">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg ${isLast?'bg-emerald-100':'bg-surface-low'} flex items-center justify-center shrink-0 text-xl">
+            ${isLast ? '<span class="material-symbols-outlined text-lg text-tertiary filled">check_circle</span>' : catData.emoji}
+          </div>
+          <div class="min-w-0">
+            <p class="font-semibold text-sm ${isLast?'text-tertiary':'text-on-surface'} truncate">${i.desc}</p>
+            <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              <span class="text-[10px] font-bold uppercase tracking-wide ${isLast?'text-tertiary/60':'text-outline-variant'}">${isLast?'Completado':'Cuota'} ${i.cuota}/${i.cuotaTotal}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${catData.color}">${catData.nombre}</span>
+              ${necBadge}
+              ${i.impuesto?'<span class="text-[9px] px-1.5 py-0.5 bg-surface-high rounded text-outline">+1%</span>':''}
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="text-right">
+            <p class="font-headline font-extrabold text-base ${isLast?'text-tertiary':'text-primary'}">${fmtPeso(mImp)}</p>
+            ${i.impuesto?`<p class="text-[10px] text-outline">${fmtPeso(i.monto)} base</p>`:''}
+          </div>
+          ${isLast
+            ? `<span class="material-symbols-outlined filled text-tertiary text-xl">stars</span>`
+            : `<button onclick="event.stopPropagation();advanceCuota('${i.id}')" class="w-8 h-8 rounded-full bg-surface-high text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90">
+                <span class="material-symbols-outlined text-base">add</span>
+               </button>`
+          }
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  container.innerHTML = html;
+}
+
+// ── Analytics ──
+function getTotalMes(yr, mo) {
+  return getActiveItems(yr,mo).reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
+}
+
+function getPrimerMes() {
+  // Primer mes con datos reales (mesInicio mínimo entre todos los gastos)
+  let minYear = 9999, minMonth = 13;
+  gastos.forEach(g => {
+    const p = parseMes(g.mesInicio);
+    if (!p) return;
+    if (p.year < minYear || (p.year===minYear && p.month<minMonth)) { minYear=p.year; minMonth=p.month; }
+  });
+  if (minYear===9999) return null;
+  return {year:minYear, month:minMonth};
+}
+
+function getMesesConDatos() {
+  const primer = getPrimerMes();
+  if (!primer) return [];
+  const meses = [];
+  let {month:m, year:y} = primer;
+  const now = new Date();
+  const cyear = now.getFullYear(), cmonth = now.getMonth()+1;
+  while (y < cyear || (y===cyear && m<=cmonth)) {
+    const total = getTotalMes(y,m);
+    if (total > 0) meses.push({month:m, year:y, total});
+    const next = addMonths(m,y,1);
+    m=next.month; y=next.year;
+  }
+  return meses;
+}
+
+function renderAnalytics() {
+  const meses = getMesesConDatos();
+  const pasados = meses.filter(m => {
+    const now = new Date();
+    return m.year < now.getFullYear() || (m.year===now.getFullYear() && m.month < now.getMonth()+1);
+  });
+
+  // Promedio (solo meses pasados completos)
+  const promedio = pasados.length ? pasados.reduce((s,m)=>s+m.total,0)/pasados.length : 0;
+  document.getElementById('an-promedio').textContent = fmtPeso(promedio);
+  document.getElementById('an-promedio-sub').textContent = pasados.length ? `basado en ${pasados.length} mes${pasados.length!==1?'es':''}` : 'sin datos aún';
+
+  // Mes más caro
+  const maxMes = pasados.reduce((a,b)=>b.total>a.total?b:a, {total:0});
+  document.getElementById('an-max-mes').textContent = maxMes.total ? monthShort(maxMes.month,maxMes.year) : '—';
+  document.getElementById('an-max-val').textContent = maxMes.total ? fmtPeso(maxMes.total) : '—';
+
+  // Tarjeta más usada (por suma total histórica)
+  const porTarjeta = {};
+  TARJETAS.forEach(t=>porTarjeta[t]=0);
+  gastos.forEach(g=>{ if(porTarjeta[g.tarjeta]!==undefined) porTarjeta[g.tarjeta]+=g.monto*g.cuotaTotal; });
+  const maxTarjeta = Object.entries(porTarjeta).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('an-tarjeta').textContent = maxTarjeta && maxTarjeta[1]>0 ? maxTarjeta[0] : '—';
+  document.getElementById('an-tarjeta-sub').textContent = maxTarjeta && maxTarjeta[1]>0 ? fmtPeso(maxTarjeta[1]) + ' total acumulado' : '—';
+
+  // Próximo mes
+  const next = addMonths(currentMonth,currentYear,1);
+  const proximoTotal = getTotalMes(next.year,next.month);
+  document.getElementById('an-proximo').textContent = fmtPeso(proximoTotal);
+  document.getElementById('an-proximo-sub').textContent = monthName(next.month,next.year);
+
+  // Gráfico barras
+  const labels = meses.map(m=>monthShort(m.month,m.year));
+  const values = meses.map(m=>Math.round(m.total));
+  if (chartMensual) chartMensual.destroy();
+  const ctx = document.getElementById('chart-mensual').getContext('2d');
+  chartMensual = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Gasto mensual',
+        data: values,
+        backgroundColor: values.map((_,i)=>i===values.length-1?'rgba(0,77,100,0.4)':'rgba(0,77,100,0.85)'),
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>'$'+ctx.raw.toLocaleString('es-AR') } } },
+      scales: {
+        x: { grid:{display:false}, ticks:{font:{size:10},color:'#70787e'} },
+        y: { grid:{color:'#f3f4f5'}, ticks:{font:{size:10},color:'#70787e', callback:v=>'$'+v.toLocaleString('es-AR')} }
+      }
+    }
+  });
+
+  // Proyección próximos 3 meses
+  const projEl = document.getElementById('an-proyeccion');
+  projEl.innerHTML = '';
+  for (let i=1; i<=3; i++) {
+    const fut = addMonths(currentMonth,currentYear,i);
+    const futTotal = getTotalMes(fut.year,fut.month);
+    const pct = promedio > 0 ? Math.round((futTotal/promedio)*100) : 0;
+    projEl.innerHTML += `
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-semibold text-outline w-16 shrink-0">${monthShort(fut.month,fut.year)}</span>
+        <div class="flex-1 bg-surface-low rounded-full h-2">
+          <div class="bg-primary h-2 rounded-full transition-all" style="width:${Math.min(pct,100)}%"></div>
+        </div>
+        <span class="text-xs font-bold text-primary w-24 text-right shrink-0">${fmtPeso(futTotal)}</span>
+      </div>`;
+  }
+
+  // Necesario vs Opcional (mes actual)
+  const itemsMesActual = getActiveItems();
+  const totalNec = itemsMesActual.filter(i=>i.necesario!==false).reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
+  const totalOpt = itemsMesActual.filter(i=>i.necesario===false).reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
+  const totalMesAct = totalNec + totalOpt;
+  const pctNec = totalMesAct > 0 ? Math.round((totalNec/totalMesAct)*100) : 0;
+  document.getElementById('an-nec-opt').innerHTML = `
+    <div class="flex items-center gap-3">
+      <span class="text-xs font-semibold text-blue-700 w-20 shrink-0">Necesario</span>
+      <div class="flex-1 bg-surface-low rounded-full h-3">
+        <div class="bg-primary h-3 rounded-full transition-all" style="width:${pctNec}%"></div>
+      </div>
+      <span class="text-xs font-bold text-primary w-28 text-right shrink-0">${fmtPeso(totalNec)} (${pctNec}%)</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-xs font-semibold text-purple-700 w-20 shrink-0">Opcional</span>
+      <div class="flex-1 bg-surface-low rounded-full h-3">
+        <div class="bg-purple-400 h-3 rounded-full transition-all" style="width:${100-pctNec}%"></div>
+      </div>
+      <span class="text-xs font-bold text-purple-600 w-28 text-right shrink-0">${fmtPeso(totalOpt)} (${100-pctNec}%)</span>
+    </div>`;
+
+  // Por categoría (mes actual)
+  const porCat = {};
+  CATEGORIAS.forEach(c=>porCat[c.nombre]=0);
+  itemsMesActual.forEach(i=>{ const cat=i.categoria||'Otros'; if(porCat[cat]!==undefined) porCat[cat]+=(i.impuesto?i.monto*1.01:i.monto); });
+  const catEl = document.getElementById('an-por-cat');
+  const catEntries = Object.entries(porCat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  if (catEntries.length) {
+    catEl.innerHTML = catEntries.map(([nombre,val]) => {
+      const cd = getCatData(nombre);
+      const pct = totalMesAct>0?Math.round((val/totalMesAct)*100):0;
+      return `<div class="flex items-center gap-3">
+        <span class="text-sm w-6 shrink-0">${cd.emoji}</span>
+        <span class="text-xs font-semibold text-on-surface-variant w-24 shrink-0 truncate">${nombre}</span>
+        <div class="flex-1 bg-surface-low rounded-full h-2">
+          <div class="bg-primary h-2 rounded-full" style="width:${pct}%"></div>
+        </div>
+        <span class="text-xs font-bold text-outline w-8 text-right shrink-0">${pct}%</span>
+      </div>`;
+    }).join('');
+  } else { catEl.innerHTML='<p class="text-xs text-outline text-center py-2">Sin datos este mes</p>'; }
+
+  // Por tarjeta
+  const ptEl = document.getElementById('an-por-tarjeta');
+  const totalGeneral = Object.values(porTarjeta).reduce((a,b)=>a+b,0);
+  ptEl.innerHTML = Object.entries(porTarjeta)
+    .filter(([,v])=>v>0)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([t,v]) => {
+      const pct = totalGeneral>0?Math.round((v/totalGeneral)*100):0;
+      const color = getTagColor(t).split(' ')[0].replace('bg-','');
+      return `<div class="flex items-center gap-3">
+        <span class="text-xs font-semibold text-on-surface-variant w-28 shrink-0 truncate">${t}</span>
+        <div class="flex-1 bg-surface-low rounded-full h-2">
+          <div class="bg-primary h-2 rounded-full" style="width:${pct}%"></div>
+        </div>
+        <span class="text-xs font-bold text-outline w-8 text-right shrink-0">${pct}%</span>
+      </div>`;
+    }).join('');
+}
+
+// ── History ──
+function renderHistory() {
+  const primer = getPrimerMes();
+  if (!primer || !gastos.length) {
+    document.getElementById('history-container').innerHTML = '<p class="text-sm text-outline text-center py-8">No hay datos históricos todavía.</p>';
+    return;
+  }
+  const now = new Date();
+  let html = '';
+
+  // Gastos completados
+  const completados = gastos.filter(g => {
+    const ini = parseMes(g.mesInicio);
+    if (!ini) return false;
+    const finYear = ini.year + Math.floor((ini.month + g.cuotaTotal - 2) / 12);
+    const finMonth = ((ini.month + g.cuotaTotal - 2) % 12) + 1;
+    return finYear < now.getFullYear() || (finYear===now.getFullYear() && finMonth < now.getMonth()+1);
+  });
+
+  if (completados.length) {
+    html += `<div class="space-y-2">
+      <p class="text-xs font-bold uppercase tracking-widest text-tertiary flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-sm filled">task_alt</span>Gastos completados
+      </p>`;
+    completados.forEach(g => {
+      const ini = parseMes(g.mesInicio);
+      const finMonth = ((ini.month + g.cuotaTotal - 2) % 12) + 1;
+      const finYear = ini.year + Math.floor((ini.month + g.cuotaTotal - 2) / 12);
+      html += `<div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined filled text-tertiary">check_circle</span>
+          <div>
+            <p class="font-semibold text-sm text-tertiary">${g.desc}</p>
+            <p class="text-[10px] text-tertiary/60">${g.tarjeta} · ${g.cuotaTotal} cuotas · terminó ${monthShort(finMonth,finYear)}</p>
+          </div>
+        </div>
+        <span class="font-bold text-sm text-tertiary">${fmtPeso(g.monto*g.cuotaTotal)}</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // Resumen por mes
+  html += `<div class="space-y-2 mt-4">
+    <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Resumen por mes</p>`;
+  const meses = getMesesConDatos();
+  [...meses].reverse().forEach(({month:m,year:y,total}) => {
+    const isCurrent = m===now.getMonth()+1 && y===now.getFullYear();
+    html += `<div class="flex items-center justify-between p-4 bg-surface-white rounded-xl shadow-sm">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-outline text-base">calendar_month</span>
+        <div>
+          <p class="font-semibold text-sm">${monthName(m,y)} ${isCurrent?'<span class="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">actual</span>':''}</p>
+          <p class="text-[10px] text-outline">${getActiveItems(y,m).length} gastos activos</p>
+        </div>
+      </div>
+      <span class="font-headline font-bold text-base text-primary">${fmtPeso(total)}</span>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('history-container').innerHTML = html;
+}
+
+// ── Cuotas ──
+async function advanceCuota(id) {
+  const g = gastos.find(x=>x.id===id);
+  if (!g) return;
+  const ini = parseMes(g.mesInicio);
+  if (!ini) return;
+  let m=ini.month+1, y=ini.year;
+  if (m>12){m=1;y++;}
+  g.mesInicio = String(m).padStart(2,'0')+'/'+y;
+  render();
+  await apiSave(g);
+}
+
+async function confirmDelete(id) {
+  if (confirm('¿Eliminar este gasto?')) {
+    gastos = gastos.filter(x=>x.id!==id);
+    render();
+    await apiDelete(id);
+  }
+}
+
+// ── Modal gasto ──
+function openModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Nuevo gasto';
+  document.getElementById('f-desc').value = '';
+  actualizarSelectTarjeta();
+  document.getElementById('f-tarjeta').value = TARJETAS[0]||'';
+  document.getElementById('f-monto').value = '';
+  document.getElementById('f-mes').value = String(currentMonth).padStart(2,'0')+'/'+currentYear;
+  document.getElementById('f-cuota-actual').value = '1';
+  document.getElementById('f-cuota-total').value = '1';
+  populateCategorias();
+  document.getElementById('f-categoria').value = 'Hogar';
+  setNecesario(true);
+  impuestoActivo = false;
+  updateImpuestoBtn();
+  document.getElementById('edit-actions').classList.add('hidden');
+  showOverlay('overlay', true);
+  setTimeout(()=>document.getElementById('f-desc').focus(),200);
+}
+
+function editGasto(id) {
+  const g = gastos.find(x=>x.id===id);
+  if (!g) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Editar gasto';
+  document.getElementById('f-desc').value = g.desc;
+  actualizarSelectTarjeta();
+  document.getElementById('f-tarjeta').value = g.tarjeta;
+  document.getElementById('f-monto').value = g.monto;
+  document.getElementById('f-mes').value = g.mesInicio;
+  document.getElementById('f-cuota-actual').value = g.cuotaActual;
+  document.getElementById('f-cuota-total').value = g.cuotaTotal;
+  populateCategorias();
+  document.getElementById('f-categoria').value = g.categoria || 'Otros';
+  setNecesario(g.necesario !== false);
+  impuestoActivo = g.impuesto;
+  updateImpuestoBtn();
+  document.getElementById('edit-actions').classList.remove('hidden');
+  showOverlay('overlay', true);
+}
+
+function closeModal() { showOverlay('overlay', false); }
+function closeOnOverlay(e) { if(e.target===document.getElementById('overlay')) closeModal(); }
+
+function showOverlay(id, show) {
+  const el = document.getElementById(id);
+  if (show) { el.classList.remove('opacity-0','pointer-events-none'); el.classList.add('opacity-100'); }
+  else { el.classList.add('opacity-0','pointer-events-none'); el.classList.remove('opacity-100'); }
+}
+
+function toggleImpuesto() {
+  impuestoActivo = !impuestoActivo;
+  updateImpuestoBtn();
+}
+
+function updateImpuestoBtn() {
+  const btn = document.getElementById('btn-impuesto');
+  const box = document.getElementById('tog-box');
+  const icon = document.getElementById('tog-icon');
+  if (impuestoActivo) {
+    btn.classList.add('border-primary');
+    btn.classList.remove('border-outline-variant');
+    box.classList.add('bg-primary','border-primary');
+    box.classList.remove('border-outline-variant');
+    icon.textContent = '✓';
+  } else {
+    btn.classList.remove('border-primary');
+    btn.classList.add('border-outline-variant');
+    box.classList.remove('bg-primary','border-primary');
+    box.classList.add('border-outline-variant');
+    icon.textContent = '';
+  }
+}
+
+async function saveGasto() {
+  const desc = document.getElementById('f-desc').value.trim();
+  const monto = parseFloat(document.getElementById('f-monto').value);
+  const mes = document.getElementById('f-mes').value.trim();
+  if (!desc||!monto||!parseMes(mes)) { alert('Completá descripción, monto y mes (MM/AAAA)'); return; }
+  const cuotaActual = parseInt(document.getElementById('f-cuota-actual').value)||1;
+  const cuotaTotal = parseInt(document.getElementById('f-cuota-total').value)||1;
+  const mesInicioReal = mesInicioDesdeCuotaActual(mes, cuotaActual);
+  const data = { desc, tarjeta:document.getElementById('f-tarjeta').value, monto, mesInicio:mesInicioReal, cuotaActual, cuotaTotal, impuesto:impuestoActivo, categoria:document.getElementById('f-categoria').value, necesario:necesarioActivo };
+  if (editingId) {
+    const idx = gastos.findIndex(x=>x.id===editingId);
+    if (idx>=0) gastos[idx]={...gastos[idx],...data};
+    closeModal(); render();
+    await apiSave({id:editingId,...data});
+  } else {
+    const nuevo = {id:uid(),...data};
+    gastos.push(nuevo);
+    closeModal(); render();
+    await apiSave(nuevo);
+  }
+}
+
+async function deleteGasto() {
+  if (!editingId) return;
+  if (confirm('¿Eliminar este gasto?')) {
+    gastos = gastos.filter(x=>x.id!==editingId);
+    closeModal(); render();
+    await apiDelete(editingId);
+  }
+}
+
+// ── Config tarjetas ──
+function saveTarjetas() { localStorage.setItem('tarjetas_config', JSON.stringify(TARJETAS)); }
+
+function openConfig() { renderConfigList(); showOverlay('overlay-config',true); }
+function closeConfig() { showOverlay('overlay-config',false); actualizarSelectTarjeta(); render(); }
+function closeOnOverlayConfig(e) { if(e.target===document.getElementById('overlay-config')) closeConfig(); }
+
+function renderConfigList() {
+  const el = document.getElementById('config-list');
+  if (!TARJETAS.length) { el.innerHTML='<p class="text-sm text-outline text-center py-4">No hay tarjetas</p>'; return; }
+  el.innerHTML = TARJETAS.map((t,i)=>`
+    <div class="flex items-center gap-2 py-2.5 border-b border-slate-100" id="crow-${i}">
+      <span class="text-xs font-semibold px-2 py-1 rounded-full flex-1 truncate ${getTagColor(t)}" id="clabel-${i}">${t}</span>
+      <input type="text" value="${t}" class="flex-1 hidden border border-outline-variant rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-primary" id="cinput-${i}">
+      <button onclick="editarTarjeta(${i})" class="p-1.5 text-outline hover:text-primary transition-colors" id="cedit-${i}"><span class="material-symbols-outlined text-base">edit</span></button>
+      <button onclick="guardarTarjeta(${i})" class="p-1.5 text-tertiary hidden" id="csave-${i}"><span class="material-symbols-outlined text-base">check</span></button>
+      <button onclick="eliminarTarjeta(${i})" class="p-1.5 text-red-400 hover:text-red-600 transition-colors" ${TARJETAS.length<=1?'disabled':''}><span class="material-symbols-outlined text-base">delete</span></button>
+    </div>`).join('');
+}
+
+function editarTarjeta(idx) {
+  document.getElementById(`clabel-${idx}`).classList.add('hidden');
+  document.getElementById(`cinput-${idx}`).classList.remove('hidden');
+  document.getElementById(`cedit-${idx}`).classList.add('hidden');
+  document.getElementById(`csave-${idx}`).classList.remove('hidden');
+  document.getElementById(`cinput-${idx}`).focus();
+}
+
+function guardarTarjeta(idx) {
+  const nuevo = document.getElementById(`cinput-${idx}`).value.trim();
+  if (!nuevo) return;
+  const viejo = TARJETAS[idx];
+  if (nuevo!==viejo && TARJETAS.includes(nuevo)) { alert('Ya existe'); return; }
+  gastos.forEach(g=>{if(g.tarjeta===viejo)g.tarjeta=nuevo;});
+  TARJETAS[idx] = nuevo;
+  saveTarjetas(); renderConfigList();
+}
+
+function agregarTarjeta() {
+  const input = document.getElementById('nueva-tarjeta');
+  const nombre = input.value.trim();
+  if (!nombre) return;
+  if (TARJETAS.includes(nombre)) { alert('Ya existe esa tarjeta'); return; }
+  TARJETAS.push(nombre); saveTarjetas(); input.value=''; renderConfigList();
+}
+
+function eliminarTarjeta(idx) {
+  const nombre = TARJETAS[idx];
+  if (gastos.some(g=>g.tarjeta===nombre)) { alert(`No podés eliminar "${nombre}" porque tiene gastos asociados.`); return; }
+  if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+  TARJETAS.splice(idx,1); saveTarjetas(); renderConfigList();
+}
+
+function actualizarSelectTarjeta() {
+  const sel = document.getElementById('f-tarjeta');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = TARJETAS.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if (TARJETAS.includes(cur)) sel.value = cur;
+}
+
+function changeMonth(d) {
+  currentMonth+=d;
+  if(currentMonth>12){currentMonth=1;currentYear++;}
+  if(currentMonth<1){currentMonth=12;currentYear--;}
+  render();
+}
+
+// ── Init ──
+const now = new Date();
+currentYear = now.getFullYear();
+currentMonth = now.getMonth()+1;
+document.getElementById('list-container').innerHTML = `<div class="text-center py-16 text-outline"><span class="material-symbols-outlined text-4xl block mb-2 animate-pulse">hourglass_top</span><p class="text-sm">Cargando datos...</p></div>`;
+loadData().then(()=>render());
+
+document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
+</script>
+</body>
+</html>
