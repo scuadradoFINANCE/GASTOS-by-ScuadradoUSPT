@@ -353,12 +353,47 @@ function setNecesario(val) {
 }
 
 // ── Config ──
-const API = 'https://script.google.com/macros/s/AKfycbzRu7vKHOzuQ6kXQNSrvo_0T-nyhgBQFOxVKJHiP_8gTouYbMlAWIVsD-zNSFI_ceBw/exec';
+const API = 'https://script.google.com/macros/s/AKfycbxMFgoeHQYQX5siEOfVh1vWaaFsA4tRsV2Hm-SUaKiNOqw3XJNRCk1mVNmWbe0gRCLl/exec';
 const TARJETAS_DEFAULT = ['BBVA (Vieja)','BBVA Visa Black','Mastercard Black','Mercadopago','Deudas / Amigos'];
 const TCARD_COLORS = ['bg-indigo-100 text-indigo-800','bg-blue-100 text-blue-800','bg-pink-100 text-pink-800','bg-emerald-100 text-emerald-700','bg-amber-100 text-amber-800','bg-purple-100 text-purple-800','bg-rose-100 text-rose-800','bg-teal-100 text-teal-800'];
-let TARJETAS = JSON.parse(localStorage.getItem('tarjetas_config') || 'null') || [...TARJETAS_DEFAULT];
+let TARJETAS = [...TARJETAS_DEFAULT];
 let gastos = [], currentYear, currentMonth, editingId = null, activeFilter = 'Todos', impuestoActivo = false;
 let chartMensual = null;
+
+function saveTarjetas() {} // guardado en Sheets, no localStorage
+
+function loadTarjetas() {
+  return new Promise(resolve => {
+    const cbName = 'cbt_' + Date.now();
+    const script = document.createElement('script');
+    window[cbName] = function(raw) {
+      delete window[cbName]; document.body.removeChild(script);
+      if (Array.isArray(raw) && raw.length) TARJETAS = raw;
+      resolve();
+    };
+    script.onerror = () => { delete window[cbName]; document.body.removeChild(script); resolve(); };
+    script.src = API + '?tipo=tarjetas&callback=' + cbName + '&t=' + Date.now();
+    document.body.appendChild(script);
+  });
+}
+
+async function apiSaveTarjeta(nombre) {
+  showSync(true);
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre }) });
+  showSync(false);
+}
+
+async function apiDeleteTarjeta(nombre) {
+  showSync(true);
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'deleteTarjeta', nombre }) });
+  showSync(false);
+}
+
+async function apiRenameTarjeta(viejo, nuevo) {
+  showSync(true);
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'renameTarjeta', viejo, nuevo }) });
+  showSync(false);
+}
 
 // ── Tabs ──
 function switchTab(tab) {
@@ -954,29 +989,35 @@ function editarTarjeta(idx) {
   document.getElementById(`cinput-${idx}`).focus();
 }
 
-function guardarTarjeta(idx) {
+async function guardarTarjeta(idx) {
   const nuevo = document.getElementById(`cinput-${idx}`).value.trim();
   if (!nuevo) return;
   const viejo = TARJETAS[idx];
   if (nuevo!==viejo && TARJETAS.includes(nuevo)) { alert('Ya existe'); return; }
   gastos.forEach(g=>{if(g.tarjeta===viejo)g.tarjeta=nuevo;});
   TARJETAS[idx] = nuevo;
-  saveTarjetas(); renderConfigList();
+  renderConfigList();
+  await apiRenameTarjeta(viejo, nuevo);
 }
 
-function agregarTarjeta() {
+async function agregarTarjeta() {
   const input = document.getElementById('nueva-tarjeta');
   const nombre = input.value.trim();
   if (!nombre) return;
   if (TARJETAS.includes(nombre)) { alert('Ya existe esa tarjeta'); return; }
-  TARJETAS.push(nombre); saveTarjetas(); input.value=''; renderConfigList();
+  TARJETAS.push(nombre);
+  input.value='';
+  renderConfigList();
+  await apiSaveTarjeta(nombre);
 }
 
-function eliminarTarjeta(idx) {
+async function eliminarTarjeta(idx) {
   const nombre = TARJETAS[idx];
   if (gastos.some(g=>g.tarjeta===nombre)) { alert(`No podés eliminar "${nombre}" porque tiene gastos asociados.`); return; }
   if (!confirm(`¿Eliminar "${nombre}"?`)) return;
-  TARJETAS.splice(idx,1); saveTarjetas(); renderConfigList();
+  TARJETAS.splice(idx,1);
+  renderConfigList();
+  await apiDeleteTarjeta(nombre);
 }
 
 function actualizarSelectTarjeta() {
@@ -999,7 +1040,7 @@ const now = new Date();
 currentYear = now.getFullYear();
 currentMonth = now.getMonth()+1;
 document.getElementById('list-container').innerHTML = `<div class="text-center py-16 text-outline"><span class="material-symbols-outlined text-4xl block mb-2 animate-pulse">hourglass_top</span><p class="text-sm">Cargando datos...</p></div>`;
-loadData().then(()=>render());
+loadTarjetas().then(() => loadData()).then(() => render());
 
 document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
 document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
