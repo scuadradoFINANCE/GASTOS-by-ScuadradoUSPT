@@ -36,6 +36,20 @@ tailwind.config = {
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 input, select { font-family: 'Inter', sans-serif; }
+
+/* Budget alert pulse */
+@keyframes alertPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+}
+.budget-alert { animation: alertPulse 2s infinite; }
+
+/* Deuda section blur toggle */
+.deuda-hidden .deuda-value {
+  filter: blur(8px);
+  user-select: none;
+  pointer-events: none;
+}
 </style>
 </head>
 <body class="bg-surface text-on-surface font-body min-h-screen pb-24 md:pb-0">
@@ -88,7 +102,7 @@ input, select { font-family: 'Inter', sans-serif; }
     <!-- ═══ DASHBOARD ═══ -->
     <div id="tab-dashboard" class="tab-content active space-y-6">
 
-      <!-- Month nav + sync -->
+      <!-- Month nav -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <h1 id="month-label" class="font-headline font-extrabold text-2xl text-on-surface tracking-tight"></h1>
@@ -100,6 +114,36 @@ input, select { font-family: 'Inter', sans-serif; }
               <span class="material-symbols-outlined text-on-surface-variant text-lg">chevron_right</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Budget alert banner -->
+      <div id="budget-alert-banner" class="hidden items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 budget-alert">
+        <span class="material-symbols-outlined filled text-red-500 text-xl shrink-0">warning</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-bold text-red-700" id="budget-alert-text">Superaste el presupuesto mensual</p>
+          <p class="text-xs text-red-500" id="budget-alert-sub"></p>
+        </div>
+        <button onclick="openBudgetConfig()" class="text-xs font-bold text-red-600 underline shrink-0">Configurar</button>
+      </div>
+
+      <!-- Budget progress bar (when configured) -->
+      <div id="budget-progress-wrap" class="hidden bg-surface-white rounded-xl shadow-sm px-4 py-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Presupuesto mensual</span>
+          <div class="flex items-center gap-2">
+            <span id="budget-progress-label" class="text-xs font-bold text-on-surface"></span>
+            <button onclick="openBudgetConfig()" class="text-outline hover:text-primary transition-colors">
+              <span class="material-symbols-outlined text-sm">edit</span>
+            </button>
+          </div>
+        </div>
+        <div class="w-full bg-surface-low rounded-full h-2.5">
+          <div id="budget-progress-bar" class="h-2.5 rounded-full transition-all duration-500" style="width:0%"></div>
+        </div>
+        <div class="flex justify-between mt-1">
+          <span class="text-[10px] text-outline" id="budget-progress-used"></span>
+          <span class="text-[10px] text-outline" id="budget-progress-limit"></span>
         </div>
       </div>
 
@@ -135,12 +179,41 @@ input, select { font-family: 'Inter', sans-serif; }
     <div id="tab-analytics" class="tab-content space-y-6">
       <h1 class="font-headline font-extrabold text-2xl text-on-surface tracking-tight">Analytics</h1>
 
+      <!-- ── DEUDA TOTAL CARD (con ojo) ── -->
+      <div id="deuda-card" class="bg-gradient-to-br from-primary to-primary-light text-white rounded-2xl shadow-lg p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined filled text-white/80 text-lg">account_balance_wallet</span>
+            <span class="text-xs font-bold uppercase tracking-widest text-white/70">Deuda total pendiente</span>
+          </div>
+          <button id="btn-ojo" onclick="toggleDeudaVisibility()" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-all">
+            <span id="ojo-icon" class="material-symbols-outlined text-white text-base filled">visibility</span>
+          </button>
+        </div>
+        <div id="deuda-content">
+          <div class="deuda-value">
+            <p id="an-deuda-total" class="font-headline font-extrabold text-3xl text-white">$0</p>
+            <p id="an-deuda-sub" class="text-xs text-white/60 mt-1">calculando...</p>
+          </div>
+          <div class="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
+            <div>
+              <p class="text-[10px] uppercase tracking-widest text-white/50 font-bold">Último pago</p>
+              <p id="an-fin-deuda" class="deuda-value font-headline font-bold text-lg text-white mt-0.5">—</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[10px] uppercase tracking-widest text-white/50 font-bold">Meses restantes</p>
+              <p id="an-meses-restantes" class="deuda-value font-headline font-bold text-lg text-white mt-0.5">—</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- KPI cards -->
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-primary">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Promedio mensual</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Promedio últimos 6 meses</p>
           <p id="an-promedio" class="font-headline font-extrabold text-xl text-primary mt-2">$0</p>
-          <p id="an-promedio-sub" class="text-[10px] text-outline mt-1">desde el primer mes</p>
+          <p id="an-promedio-sub" class="text-[10px] text-outline mt-1">últimos 6 meses</p>
         </div>
         <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-outline-variant">
           <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Mes más caro</p>
@@ -305,6 +378,27 @@ input, select { font-family: 'Inter', sans-serif; }
       <input id="nueva-tarjeta" type="text" placeholder="Nueva tarjeta..." class="flex-1 border border-outline-variant rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
       <button onclick="agregarTarjeta()" class="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:opacity-90">Agregar</button>
     </div>
+
+    <!-- Presupuesto mensual config dentro del modal settings -->
+    <div class="mt-6 pt-5 border-t border-slate-100">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-primary text-base">savings</span>
+        <span class="font-headline font-bold text-base text-on-surface">Presupuesto mensual</span>
+      </div>
+      <p class="text-xs text-outline mb-3">Si el gasto mensual supera este monto, verás una alerta en el dashboard.</p>
+      <div class="flex gap-2">
+        <div class="relative flex-1">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-outline">$</span>
+          <input id="budget-input" type="number" placeholder="ej: 500000" min="0"
+            class="w-full border border-outline-variant rounded-lg pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:border-primary">
+        </div>
+        <button onclick="saveBudget()" class="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:opacity-90">Guardar</button>
+        <button onclick="clearBudget()" class="px-3 py-2 text-sm text-outline border border-outline-variant rounded-lg hover:bg-surface-low" title="Quitar límite">
+          <span class="material-symbols-outlined text-base">delete</span>
+        </button>
+      </div>
+      <p id="budget-current-label" class="text-xs text-outline mt-2"></p>
+    </div>
   </div>
 </div>
 
@@ -360,39 +454,144 @@ let TARJETAS = [...TARJETAS_DEFAULT];
 let gastos = [], currentYear, currentMonth, editingId = null, activeFilter = 'Todos', impuestoActivo = false;
 let chartMensual = null;
 
-function saveTarjetas() {} // guardado en Sheets, no localStorage
+// ── Budget (presupuesto) ──
+let budgetLimit = 0; // 0 = sin límite
 
-function loadTarjetas() {
-  return new Promise(resolve => {
-    const cbName = 'cbt_' + Date.now();
-    const script = document.createElement('script');
-    window[cbName] = function(raw) {
-      delete window[cbName]; document.body.removeChild(script);
-      if (Array.isArray(raw) && raw.length) TARJETAS = raw;
-      resolve();
-    };
-    script.onerror = () => { delete window[cbName]; document.body.removeChild(script); resolve(); };
-    script.src = API + '?tipo=tarjetas&callback=' + cbName + '&t=' + Date.now();
-    document.body.appendChild(script);
+function loadBudget() {
+  const saved = localStorage.getItem('budget_limit');
+  budgetLimit = saved ? parseFloat(saved) : 0;
+  updateBudgetCurrentLabel();
+}
+
+function saveBudget() {
+  const val = parseFloat(document.getElementById('budget-input').value);
+  if (!val || val <= 0) { alert('Ingresá un monto válido'); return; }
+  budgetLimit = val;
+  localStorage.setItem('budget_limit', val);
+  updateBudgetCurrentLabel();
+  render();
+  alert('✅ Presupuesto guardado: ' + fmtPeso(val));
+}
+
+function clearBudget() {
+  budgetLimit = 0;
+  localStorage.removeItem('budget_limit');
+  document.getElementById('budget-input').value = '';
+  updateBudgetCurrentLabel();
+  render();
+}
+
+function openBudgetConfig() {
+  closeModal();
+  if (budgetLimit > 0) document.getElementById('budget-input').value = budgetLimit;
+  openConfig();
+}
+
+function updateBudgetCurrentLabel() {
+  const el = document.getElementById('budget-current-label');
+  if (!el) return;
+  el.textContent = budgetLimit > 0 ? `Límite actual: ${fmtPeso(budgetLimit)}` : 'Sin límite configurado';
+  if (budgetLimit > 0) document.getElementById('budget-input').value = budgetLimit;
+}
+
+function renderBudgetUI(totalMes) {
+  const alert = document.getElementById('budget-alert-banner');
+  const progressWrap = document.getElementById('budget-progress-wrap');
+
+  if (!budgetLimit || budgetLimit <= 0) {
+    alert.classList.add('hidden'); alert.classList.remove('flex');
+    progressWrap.classList.add('hidden');
+    return;
+  }
+
+  const pct = Math.round((totalMes / budgetLimit) * 100);
+  const excede = totalMes > budgetLimit;
+  const diferencia = Math.abs(totalMes - budgetLimit);
+
+  // Progress bar
+  progressWrap.classList.remove('hidden');
+  const bar = document.getElementById('budget-progress-bar');
+  bar.style.width = Math.min(pct, 100) + '%';
+  bar.className = `h-2.5 rounded-full transition-all duration-500 ${excede ? 'bg-red-500' : pct > 80 ? 'bg-amber-400' : 'bg-primary'}`;
+  document.getElementById('budget-progress-label').textContent = pct + '%';
+  document.getElementById('budget-progress-label').className = `text-xs font-bold ${excede ? 'text-red-600' : pct > 80 ? 'text-amber-600' : 'text-primary'}`;
+  document.getElementById('budget-progress-used').textContent = fmtPeso(totalMes) + ' usado';
+  document.getElementById('budget-progress-limit').textContent = 'límite ' + fmtPeso(budgetLimit);
+
+  // Alert banner
+  if (excede) {
+    alert.classList.remove('hidden'); alert.classList.add('flex');
+    document.getElementById('budget-alert-text').textContent = `⚠️ Superaste el presupuesto de ${monthName(currentMonth, currentYear)}`;
+    document.getElementById('budget-alert-sub').textContent = `Te pasaste ${fmtPeso(diferencia)} del límite de ${fmtPeso(budgetLimit)}`;
+  } else {
+    alert.classList.add('hidden'); alert.classList.remove('flex');
+  }
+}
+
+// ── Deuda total + ojo ──
+let deudaVisible = true;
+
+function toggleDeudaVisibility() {
+  deudaVisible = !deudaVisible;
+  const content = document.getElementById('deuda-content');
+  const icon = document.getElementById('ojo-icon');
+  if (deudaVisible) {
+    content.classList.remove('deuda-hidden');
+    icon.textContent = 'visibility';
+    icon.classList.add('filled');
+  } else {
+    content.classList.add('deuda-hidden');
+    icon.textContent = 'visibility_off';
+    icon.classList.remove('filled');
+  }
+}
+
+function calcDeudaTotal() {
+  // Suma de todas las cuotas futuras pendientes desde hoy
+  let total = 0;
+  let maxFinYear = 0, maxFinMonth = 0;
+
+  const now = new Date();
+  const cyear = now.getFullYear(), cmonth = now.getMonth() + 1;
+
+  gastos.forEach(g => {
+    const ini = parseMes(g.mesInicio);
+    if (!ini) return;
+
+    // Calcular cuotas pendientes desde el mes actual
+    for (let i = 0; i < g.cuotaTotal; i++) {
+      let mo = ini.month + i, yr = ini.year;
+      while (mo > 12) { mo -= 12; yr++; }
+      // Solo contar desde mes actual en adelante
+      if (yr > cyear || (yr === cyear && mo >= cmonth)) {
+        total += g.impuesto ? g.monto * 1.01 : g.monto;
+        // Track max end date
+        if (yr > maxFinYear || (yr === maxFinYear && mo > maxFinMonth)) {
+          maxFinYear = yr; maxFinMonth = mo;
+        }
+      }
+    }
   });
+
+  return { total, finYear: maxFinYear, finMonth: maxFinMonth };
 }
 
-async function apiSaveTarjeta(nombre) {
-  showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre }) });
-  showSync(false);
-}
+function renderDeudaCard() {
+  const { total, finYear, finMonth } = calcDeudaTotal();
+  document.getElementById('an-deuda-total').textContent = fmtPeso(total);
 
-async function apiDeleteTarjeta(nombre) {
-  showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'deleteTarjeta', nombre }) });
-  showSync(false);
-}
-
-async function apiRenameTarjeta(viejo, nuevo) {
-  showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'renameTarjeta', viejo, nuevo }) });
-  showSync(false);
+  if (finYear > 0) {
+    document.getElementById('an-fin-deuda').textContent = monthName(finMonth, finYear);
+    // Meses restantes desde hoy
+    const now = new Date();
+    const mesesRestantes = (finYear - now.getFullYear()) * 12 + (finMonth - (now.getMonth() + 1));
+    document.getElementById('an-meses-restantes').textContent = mesesRestantes <= 0 ? 'Este mes' : mesesRestantes + ' mes' + (mesesRestantes !== 1 ? 'es' : '');
+    document.getElementById('an-deuda-sub').textContent = total > 0 ? 'total en cuotas desde hoy' : 'sin deuda pendiente 🎉';
+  } else {
+    document.getElementById('an-fin-deuda').textContent = '—';
+    document.getElementById('an-meses-restantes').textContent = '—';
+    document.getElementById('an-deuda-sub').textContent = 'sin deuda pendiente 🎉';
+  }
 }
 
 // ── Tabs ──
@@ -474,6 +673,21 @@ function loadData() {
   });
 }
 
+function loadTarjetas() {
+  return new Promise(resolve => {
+    const cbName = 'cbt_' + Date.now();
+    const script = document.createElement('script');
+    window[cbName] = function(raw) {
+      delete window[cbName]; document.body.removeChild(script);
+      if (Array.isArray(raw) && raw.length) TARJETAS = raw;
+      resolve();
+    };
+    script.onerror = () => { delete window[cbName]; document.body.removeChild(script); resolve(); };
+    script.src = API + '?tipo=tarjetas&callback=' + cbName + '&t=' + Date.now();
+    document.body.appendChild(script);
+  });
+}
+
 async function apiSave(gasto) {
   showSync(true);
   await fetch(API, { method:'POST', body: JSON.stringify({action:'save', gasto}) });
@@ -483,6 +697,24 @@ async function apiSave(gasto) {
 async function apiDelete(id) {
   showSync(true);
   await fetch(API, { method:'POST', body: JSON.stringify({action:'delete', id}) });
+  showSync(false);
+}
+
+async function apiSaveTarjeta(nombre) {
+  showSync(true);
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre }) });
+  showSync(false);
+}
+
+async function apiDeleteTarjeta(nombre) {
+  showSync(true);
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'deleteTarjeta', nombre }) });
+  showSync(false);
+}
+
+async function apiRenameTarjeta(viejo, nuevo) {
+  showSync(true);
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'renameTarjeta', viejo, nuevo }) });
   showSync(false);
 }
 
@@ -504,6 +736,9 @@ function render() {
   document.getElementById('sum-imp').textContent = fmtPeso(totalImp);
   document.getElementById('sum-imp-extra').textContent = '+' + fmtPeso(totalImp-total) + ' en sellos';
   document.getElementById('sum-last').textContent = lastCount;
+
+  // Budget UI
+  renderBudgetUI(totalImp);
 
   // Filters
   let items = allItems;
@@ -550,7 +785,6 @@ function render() {
     const list = groups[t];
     if (!list.length) return;
     const gtotal = list.reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
-    const tagColor = getTagColor(t);
     html += `<div class="space-y-3">
       <div class="flex items-center justify-between px-1">
         <div class="flex items-center gap-2">
@@ -607,7 +841,6 @@ function getTotalMes(yr, mo) {
 }
 
 function getPrimerMes() {
-  // Primer mes con datos reales (mesInicio mínimo entre todos los gastos)
   let minYear = 9999, minMonth = 13;
   gastos.forEach(g => {
     const p = parseMes(g.mesInicio);
@@ -636,22 +869,23 @@ function getMesesConDatos() {
 
 function renderAnalytics() {
   const meses = getMesesConDatos();
-  const pasados = meses.filter(m => {
-    const now = new Date();
-    return m.year < now.getFullYear() || (m.year===now.getFullYear() && m.month < now.getMonth()+1);
-  });
+  const now = new Date();
+  const pasados = meses.filter(m => m.year < now.getFullYear() || (m.year===now.getFullYear() && m.month < now.getMonth()+1));
 
-  // Promedio (solo meses pasados completos)
-  const promedio = pasados.length ? pasados.reduce((s,m)=>s+m.total,0)/pasados.length : 0;
+  // ── Promedio últimos 6 meses (solo meses pasados completos) ──
+  const ultimos6 = pasados.slice(-6);
+  const promedio = ultimos6.length ? ultimos6.reduce((s,m)=>s+m.total,0)/ultimos6.length : 0;
   document.getElementById('an-promedio').textContent = fmtPeso(promedio);
-  document.getElementById('an-promedio-sub').textContent = pasados.length ? `basado en ${pasados.length} mes${pasados.length!==1?'es':''}` : 'sin datos aún';
+  document.getElementById('an-promedio-sub').textContent = ultimos6.length
+    ? `basado en los últimos ${ultimos6.length} mes${ultimos6.length!==1?'es':''}`
+    : 'sin datos suficientes aún';
 
-  // Mes más caro
-  const maxMes = pasados.reduce((a,b)=>b.total>a.total?b:a, {total:0});
+  // Mes más caro (de los últimos 6)
+  const maxMes = ultimos6.reduce((a,b)=>b.total>a.total?b:a, {total:0});
   document.getElementById('an-max-mes').textContent = maxMes.total ? monthShort(maxMes.month,maxMes.year) : '—';
   document.getElementById('an-max-val').textContent = maxMes.total ? fmtPeso(maxMes.total) : '—';
 
-  // Tarjeta más usada (por suma total histórica)
+  // Tarjeta más usada
   const porTarjeta = {};
   TARJETAS.forEach(t=>porTarjeta[t]=0);
   gastos.forEach(g=>{ if(porTarjeta[g.tarjeta]!==undefined) porTarjeta[g.tarjeta]+=g.monto*g.cuotaTotal; });
@@ -665,9 +899,13 @@ function renderAnalytics() {
   document.getElementById('an-proximo').textContent = fmtPeso(proximoTotal);
   document.getElementById('an-proximo-sub').textContent = monthName(next.month,next.year);
 
-  // Gráfico barras
+  // ── Deuda total ──
+  renderDeudaCard();
+
+  // ── Gráfico barras (muestra todos los meses disponibles) ──
   const labels = meses.map(m=>monthShort(m.month,m.year));
   const values = meses.map(m=>Math.round(m.total));
+  const isCurrent = meses.map(m=>m.month===now.getMonth()+1 && m.year===now.getFullYear());
   if (chartMensual) chartMensual.destroy();
   const ctx = document.getElementById('chart-mensual').getContext('2d');
   chartMensual = new Chart(ctx, {
@@ -677,7 +915,7 @@ function renderAnalytics() {
       datasets: [{
         label: 'Gasto mensual',
         data: values,
-        backgroundColor: values.map((_,i)=>i===values.length-1?'rgba(0,77,100,0.4)':'rgba(0,77,100,0.85)'),
+        backgroundColor: values.map((_,i)=>isCurrent[i]?'rgba(0,77,100,0.4)':'rgba(0,77,100,0.85)'),
         borderRadius: 6,
         borderSkipped: false,
       }]
@@ -692,24 +930,27 @@ function renderAnalytics() {
     }
   });
 
-  // Proyección próximos 3 meses
+  // Proyección próximos 3 meses (usa promedio de 6 como referencia)
   const projEl = document.getElementById('an-proyeccion');
   projEl.innerHTML = '';
   for (let i=1; i<=3; i++) {
     const fut = addMonths(currentMonth,currentYear,i);
     const futTotal = getTotalMes(fut.year,fut.month);
     const pct = promedio > 0 ? Math.round((futTotal/promedio)*100) : 0;
+    const overBudget = budgetLimit > 0 && futTotal > budgetLimit;
     projEl.innerHTML += `
       <div class="flex items-center gap-3">
         <span class="text-xs font-semibold text-outline w-16 shrink-0">${monthShort(fut.month,fut.year)}</span>
         <div class="flex-1 bg-surface-low rounded-full h-2">
-          <div class="bg-primary h-2 rounded-full transition-all" style="width:${Math.min(pct,100)}%"></div>
+          <div class="${overBudget?'bg-red-400':'bg-primary'} h-2 rounded-full transition-all" style="width:${Math.min(pct,100)}%"></div>
         </div>
-        <span class="text-xs font-bold text-primary w-24 text-right shrink-0">${fmtPeso(futTotal)}</span>
+        <span class="text-xs font-bold ${overBudget?'text-red-500':'text-primary'} w-28 text-right shrink-0">
+          ${fmtPeso(futTotal)}${overBudget?' ⚠️':''}
+        </span>
       </div>`;
   }
 
-  // Necesario vs Opcional (mes actual)
+  // Necesario vs Opcional
   const itemsMesActual = getActiveItems();
   const totalNec = itemsMesActual.filter(i=>i.necesario!==false).reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
   const totalOpt = itemsMesActual.filter(i=>i.necesario===false).reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
@@ -731,7 +972,7 @@ function renderAnalytics() {
       <span class="text-xs font-bold text-purple-600 w-28 text-right shrink-0">${fmtPeso(totalOpt)} (${100-pctNec}%)</span>
     </div>`;
 
-  // Por categoría (mes actual)
+  // Por categoría
   const porCat = {};
   CATEGORIAS.forEach(c=>porCat[c.nombre]=0);
   itemsMesActual.forEach(i=>{ const cat=i.categoria||'Otros'; if(porCat[cat]!==undefined) porCat[cat]+=(i.impuesto?i.monto*1.01:i.monto); });
@@ -760,7 +1001,6 @@ function renderAnalytics() {
     .sort((a,b)=>b[1]-a[1])
     .map(([t,v]) => {
       const pct = totalGeneral>0?Math.round((v/totalGeneral)*100):0;
-      const color = getTagColor(t).split(' ')[0].replace('bg-','');
       return `<div class="flex items-center gap-3">
         <span class="text-xs font-semibold text-on-surface-variant w-28 shrink-0 truncate">${t}</span>
         <div class="flex-1 bg-surface-low rounded-full h-2">
@@ -781,7 +1021,6 @@ function renderHistory() {
   const now = new Date();
   let html = '';
 
-  // Gastos completados
   const completados = gastos.filter(g => {
     const ini = parseMes(g.mesInicio);
     if (!ini) return false;
@@ -813,21 +1052,21 @@ function renderHistory() {
     html += '</div>';
   }
 
-  // Resumen por mes
   html += `<div class="space-y-2 mt-4">
     <p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Resumen por mes</p>`;
   const meses = getMesesConDatos();
   [...meses].reverse().forEach(({month:m,year:y,total}) => {
     const isCurrent = m===now.getMonth()+1 && y===now.getFullYear();
-    html += `<div class="flex items-center justify-between p-4 bg-surface-white rounded-xl shadow-sm">
+    const overBudget = budgetLimit > 0 && total > budgetLimit;
+    html += `<div class="flex items-center justify-between p-4 bg-surface-white rounded-xl shadow-sm ${overBudget?'border border-red-100':''}">
       <div class="flex items-center gap-3">
         <span class="material-symbols-outlined text-outline text-base">calendar_month</span>
         <div>
-          <p class="font-semibold text-sm">${monthName(m,y)} ${isCurrent?'<span class="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">actual</span>':''}</p>
+          <p class="font-semibold text-sm">${monthName(m,y)} ${isCurrent?'<span class="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">actual</span>':''}${overBudget?'<span class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold ml-1">sobre límite</span>':''}</p>
           <p class="text-[10px] text-outline">${getActiveItems(y,m).length} gastos activos</p>
         </div>
       </div>
-      <span class="font-headline font-bold text-base text-primary">${fmtPeso(total)}</span>
+      <span class="font-headline font-bold text-base ${overBudget?'text-red-500':'text-primary'}">${fmtPeso(total)}</span>
     </div>`;
   });
   html += '</div>';
@@ -845,14 +1084,6 @@ async function advanceCuota(id) {
   g.mesInicio = String(m).padStart(2,'0')+'/'+y;
   render();
   await apiSave(g);
-}
-
-async function confirmDelete(id) {
-  if (confirm('¿Eliminar este gasto?')) {
-    gastos = gastos.filter(x=>x.id!==id);
-    render();
-    await apiDelete(id);
-  }
 }
 
 // ── Modal gasto ──
@@ -916,16 +1147,12 @@ function updateImpuestoBtn() {
   const box = document.getElementById('tog-box');
   const icon = document.getElementById('tog-icon');
   if (impuestoActivo) {
-    btn.classList.add('border-primary');
-    btn.classList.remove('border-outline-variant');
-    box.classList.add('bg-primary','border-primary');
-    box.classList.remove('border-outline-variant');
+    btn.classList.add('border-primary'); btn.classList.remove('border-outline-variant');
+    box.classList.add('bg-primary','border-primary'); box.classList.remove('border-outline-variant');
     icon.textContent = '✓';
   } else {
-    btn.classList.remove('border-primary');
-    btn.classList.add('border-outline-variant');
-    box.classList.remove('bg-primary','border-primary');
-    box.classList.add('border-outline-variant');
+    btn.classList.remove('border-primary'); btn.classList.add('border-outline-variant');
+    box.classList.remove('bg-primary','border-primary'); box.classList.add('border-outline-variant');
     icon.textContent = '';
   }
 }
@@ -962,9 +1189,7 @@ async function deleteGasto() {
 }
 
 // ── Config tarjetas ──
-function saveTarjetas() { localStorage.setItem('tarjetas_config', JSON.stringify(TARJETAS)); }
-
-function openConfig() { renderConfigList(); showOverlay('overlay-config',true); }
+function openConfig() { updateBudgetCurrentLabel(); renderConfigList(); showOverlay('overlay-config',true); }
 function closeConfig() { showOverlay('overlay-config',false); actualizarSelectTarjeta(); render(); }
 function closeOnOverlayConfig(e) { if(e.target===document.getElementById('overlay-config')) closeConfig(); }
 
@@ -1040,6 +1265,7 @@ const now = new Date();
 currentYear = now.getFullYear();
 currentMonth = now.getMonth()+1;
 document.getElementById('list-container').innerHTML = `<div class="text-center py-16 text-outline"><span class="material-symbols-outlined text-4xl block mb-2 animate-pulse">hourglass_top</span><p class="text-sm">Cargando datos...</p></div>`;
+loadBudget();
 loadTarjetas().then(() => loadData()).then(() => render());
 
 document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
