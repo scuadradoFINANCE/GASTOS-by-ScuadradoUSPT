@@ -50,9 +50,80 @@ input, select { font-family: 'Inter', sans-serif; }
   user-select: none;
   pointer-events: none;
 }
+/* PIN screen */
+#pin-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(135deg, #004d64 0%, #006684 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+#pin-screen.hidden { display: none; }
+.pin-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.5);
+  transition: all 0.15s ease;
+}
+.pin-dot.filled {
+  background: white; border-color: white;
+  transform: scale(1.1);
+}
+.pin-key {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: white; font-size: 1.5rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.1s ease;
+  font-family: 'Manrope', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.pin-key:active { background: rgba(255,255,255,0.25); transform: scale(0.93); }
+.pin-key.delete { font-size: 1.1rem; }
+@keyframes pinShake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-8px); }
+  80% { transform: translateX(8px); }
+}
+.pin-shake { animation: pinShake 0.4s ease; }
 </style>
 </head>
 <body class="bg-surface text-on-surface font-body min-h-screen pb-24 md:pb-0">
+
+<!-- PIN Screen -->
+<div id="pin-screen">
+  <div style="text-align:center; margin-bottom:2.5rem;">
+    <span class="material-symbols-outlined filled" style="font-size:2.5rem;color:rgba(255,255,255,0.7);display:block;margin-bottom:0.75rem;">lock</span>
+    <p style="font-family:Manrope;font-weight:800;font-size:1.4rem;color:white;letter-spacing:-0.02em;">Gastos & Cuotas</p>
+    <p id="pin-subtitle" style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:0.35rem;font-family:Inter;">Ingresá tu PIN para continuar</p>
+  </div>
+  <!-- Dots -->
+  <div id="pin-dots" style="display:flex;gap:1rem;margin-bottom:2.5rem;">
+    <div class="pin-dot" id="dot-0"></div>
+    <div class="pin-dot" id="dot-1"></div>
+    <div class="pin-dot" id="dot-2"></div>
+    <div class="pin-dot" id="dot-3"></div>
+  </div>
+  <!-- Keypad -->
+  <div id="pin-keypad" style="display:grid;grid-template-columns:repeat(3,72px);gap:1rem;">
+    <button class="pin-key" onclick="pinPress('1')">1</button>
+    <button class="pin-key" onclick="pinPress('2')">2</button>
+    <button class="pin-key" onclick="pinPress('3')">3</button>
+    <button class="pin-key" onclick="pinPress('4')">4</button>
+    <button class="pin-key" onclick="pinPress('5')">5</button>
+    <button class="pin-key" onclick="pinPress('6')">6</button>
+    <button class="pin-key" onclick="pinPress('7')">7</button>
+    <button class="pin-key" onclick="pinPress('8')">8</button>
+    <button class="pin-key" onclick="pinPress('9')">9</button>
+    <div></div>
+    <button class="pin-key" onclick="pinPress('0')">0</button>
+    <button class="pin-key delete" onclick="pinDelete()">&#9003;</button>
+  </div>
+  <p id="pin-lock-msg" style="display:none;margin-top:1.5rem;font-size:0.78rem;color:rgba(255,100,100,0.9);font-family:Inter;text-align:center;"></p>
+</div>
+
 
 <!-- Header -->
 <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
@@ -448,6 +519,7 @@ function setNecesario(val) {
 
 // ── Config ──
 const API = 'https://script.google.com/macros/s/AKfycbxMFgoeHQYQX5siEOfVh1vWaaFsA4tRsV2Hm-SUaKiNOqw3XJNRCk1mVNmWbe0gRCLl/exec';
+const TOKEN = 'reemplaza-esto-por-tu-clave-secreta-123'; // igual que en el Apps Script
 const TARJETAS_DEFAULT = ['BBVA (Vieja)','BBVA Visa Black','Mastercard Black','Mercadopago','Deudas / Amigos'];
 const TCARD_COLORS = ['bg-indigo-100 text-indigo-800','bg-blue-100 text-blue-800','bg-pink-100 text-pink-800','bg-emerald-100 text-emerald-700','bg-amber-100 text-amber-800','bg-purple-100 text-purple-800','bg-rose-100 text-rose-800','bg-teal-100 text-teal-800'];
 let TARJETAS = [...TARJETAS_DEFAULT];
@@ -668,7 +740,7 @@ function loadData() {
       resolve();
     };
     script.onerror = () => { delete window[cbName]; document.body.removeChild(script); alert('No se pudo conectar. Revisá tu conexión.'); resolve(); };
-    script.src = API + '?callback=' + cbName + '&t=' + Date.now();
+    script.src = API + '?callback=' + cbName + '&token=' + TOKEN + '&t=' + Date.now();
     document.body.appendChild(script);
   });
 }
@@ -683,38 +755,38 @@ function loadTarjetas() {
       resolve();
     };
     script.onerror = () => { delete window[cbName]; document.body.removeChild(script); resolve(); };
-    script.src = API + '?tipo=tarjetas&callback=' + cbName + '&t=' + Date.now();
+    script.src = API + '?tipo=tarjetas&callback=' + cbName + '&token=' + TOKEN + '&t=' + Date.now();
     document.body.appendChild(script);
   });
 }
 
 async function apiSave(gasto) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({action:'save', gasto}) });
+  await fetch(API, { method:'POST', body: JSON.stringify({action:'save', gasto, token:TOKEN}) });
   showSync(false);
 }
 
 async function apiDelete(id) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({action:'delete', id}) });
+  await fetch(API, { method:'POST', body: JSON.stringify({action:'delete', id, token:TOKEN}) });
   showSync(false);
 }
 
 async function apiSaveTarjeta(nombre) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre }) });
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre, token:TOKEN }) });
   showSync(false);
 }
 
 async function apiDeleteTarjeta(nombre) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'deleteTarjeta', nombre }) });
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'deleteTarjeta', nombre, token:TOKEN }) });
   showSync(false);
 }
 
 async function apiRenameTarjeta(viejo, nuevo) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'renameTarjeta', viejo, nuevo }) });
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'renameTarjeta', viejo, nuevo, token:TOKEN }) });
   showSync(false);
 }
 
@@ -1259,6 +1331,134 @@ function changeMonth(d) {
   if(currentMonth<1){currentMonth=12;currentYear--;}
   render();
 }
+
+
+// ── PIN ──
+const CORRECT_PIN = '1234'; // ← CAMBIÁ ESTO por tu PIN real
+const MAX_ATTEMPTS = 3;
+const LOCK_DURATION = 5 * 60 * 1000; // 5 minutos en ms
+
+let pinValue = '';
+let pinAttempts = 0;
+let pinLocked = false;
+
+function initPin() {
+  // Verificar si está bloqueado
+  const lockUntil = localStorage.getItem('pin_lock_until');
+  if (lockUntil) {
+    const remaining = parseInt(lockUntil) - Date.now();
+    if (remaining > 0) {
+      pinLocked = true;
+      showLockCountdown(remaining);
+      return;
+    } else {
+      localStorage.removeItem('pin_lock_until');
+      localStorage.removeItem('pin_attempts');
+    }
+  }
+  // Verificar si ya estaba autenticado en esta sesión
+  if (sessionStorage.getItem('pin_ok') === 'true') {
+    document.getElementById('pin-screen').classList.add('hidden');
+  }
+  pinAttempts = parseInt(localStorage.getItem('pin_attempts') || '0');
+}
+
+function pinPress(digit) {
+  if (pinLocked || pinValue.length >= 4) return;
+  pinValue += digit;
+  updateDots();
+  if (pinValue.length === 4) {
+    setTimeout(checkPin, 150);
+  }
+}
+
+function pinDelete() {
+  if (pinLocked) return;
+  pinValue = pinValue.slice(0, -1);
+  updateDots();
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('dot-' + i);
+    if (i < pinValue.length) dot.classList.add('filled');
+    else dot.classList.remove('filled');
+  }
+}
+
+function checkPin() {
+  if (pinValue === CORRECT_PIN) {
+    // Correcto
+    pinAttempts = 0;
+    localStorage.removeItem('pin_attempts');
+    sessionStorage.setItem('pin_ok', 'true');
+    document.getElementById('pin-screen').classList.add('hidden');
+  } else {
+    // Incorrecto
+    pinAttempts++;
+    localStorage.setItem('pin_attempts', pinAttempts);
+    pinValue = '';
+    updateDots();
+
+    const dotsEl = document.getElementById('pin-dots');
+    dotsEl.classList.add('pin-shake');
+    setTimeout(() => dotsEl.classList.remove('pin-shake'), 400);
+
+    const remaining = MAX_ATTEMPTS - pinAttempts;
+    if (remaining <= 0) {
+      // Bloquear
+      const lockUntil = Date.now() + LOCK_DURATION;
+      localStorage.setItem('pin_lock_until', lockUntil);
+      localStorage.removeItem('pin_attempts');
+      pinAttempts = 0;
+      pinLocked = true;
+      showLockCountdown(LOCK_DURATION);
+    } else {
+      document.getElementById('pin-subtitle').textContent = 
+        'PIN incorrecto. ' + remaining + ' intento' + (remaining !== 1 ? 's' : '') + ' restante' + (remaining !== 1 ? 's' : '');
+      document.getElementById('pin-subtitle').style.color = 'rgba(255,150,150,0.9)';
+    }
+  }
+}
+
+function showLockCountdown(ms) {
+  const keypad = document.getElementById('pin-keypad');
+  const lockMsg = document.getElementById('pin-lock-msg');
+  const subtitle = document.getElementById('pin-subtitle');
+  keypad.style.opacity = '0.3';
+  keypad.style.pointerEvents = 'none';
+  lockMsg.style.display = 'block';
+  subtitle.textContent = 'Demasiados intentos fallidos';
+  subtitle.style.color = 'rgba(255,100,100,0.9)';
+
+  const interval = setInterval(() => {
+    const lockUntil = parseInt(localStorage.getItem('pin_lock_until') || '0');
+    const remaining = lockUntil - Date.now();
+    if (remaining <= 0) {
+      clearInterval(interval);
+      pinLocked = false;
+      keypad.style.opacity = '1';
+      keypad.style.pointerEvents = 'auto';
+      lockMsg.style.display = 'none';
+      subtitle.textContent = 'Ingresá tu PIN para continuar';
+      subtitle.style.color = 'rgba(255,255,255,0.6)';
+      localStorage.removeItem('pin_lock_until');
+    } else {
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      lockMsg.textContent = 'Bloqueado por ' + mins + ':' + String(secs).padStart(2,'0');
+    }
+  }, 1000);
+}
+
+// Soporte teclado físico
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('pin-screen').classList.contains('hidden')) return;
+  if (e.key >= '0' && e.key <= '9') pinPress(e.key);
+  if (e.key === 'Backspace') pinDelete();
+});
+
+initPin();
 
 // ── Init ──
 const now = new Date();
