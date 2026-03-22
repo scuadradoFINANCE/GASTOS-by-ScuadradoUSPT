@@ -562,8 +562,8 @@ function calcDeudaTotal() {
     for (let i = 0; i < g.cuotaTotal; i++) {
       let mo = ini.month + i, yr = ini.year;
       while (mo > 12) { mo -= 12; yr++; }
-      // Solo contar desde mes actual en adelante
-      if (yr > cyear || (yr === cyear && mo >= cmonth)) {
+      // Solo contar desde el mes siguiente (el actual ya se da por pagado)
+      if (yr > cyear || (yr === cyear && mo > cmonth)) {
         total += g.impuesto ? g.monto * 1.01 : g.monto;
         // Track max end date
         if (yr > maxFinYear || (yr === maxFinYear && mo > maxFinMonth)) {
