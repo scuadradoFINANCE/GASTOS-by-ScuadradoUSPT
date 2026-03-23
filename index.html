@@ -519,7 +519,6 @@ function setNecesario(val) {
 
 // ── Config ──
 const API = 'https://script.google.com/macros/s/AKfycbxMFgoeHQYQX5siEOfVh1vWaaFsA4tRsV2Hm-SUaKiNOqw3XJNRCk1mVNmWbe0gRCLl/exec';
-const TOKEN = 'reemplaza-esto-por-tu-clave-secreta-123'; // igual que en el Apps Script
 const TARJETAS_DEFAULT = ['BBVA (Vieja)','BBVA Visa Black','Mastercard Black','Mercadopago','Deudas / Amigos'];
 const TCARD_COLORS = ['bg-indigo-100 text-indigo-800','bg-blue-100 text-blue-800','bg-pink-100 text-pink-800','bg-emerald-100 text-emerald-700','bg-amber-100 text-amber-800','bg-purple-100 text-purple-800','bg-rose-100 text-rose-800','bg-teal-100 text-teal-800'];
 let TARJETAS = [...TARJETAS_DEFAULT];
@@ -739,8 +738,8 @@ function loadData() {
       }));
       resolve();
     };
-    script.onerror = () => { delete window[cbName]; document.body.removeChild(script); console.warn('Error cargando datos'); resolve(); };
-    script.src = API + '?callback=' + cbName + '&token=' + TOKEN + '&t=' + Date.now();
+    script.onerror = () => { delete window[cbName]; document.body.removeChild(script); alert('No se pudo conectar. Revisá tu conexión.'); resolve(); };
+    script.src = API + '?callback=' + cbName + '&t=' + Date.now();
     document.body.appendChild(script);
   });
 }
@@ -755,38 +754,38 @@ function loadTarjetas() {
       resolve();
     };
     script.onerror = () => { delete window[cbName]; document.body.removeChild(script); resolve(); };
-    script.src = API + '?tipo=tarjetas&callback=' + cbName + '&token=' + TOKEN + '&t=' + Date.now();
+    script.src = API + '?tipo=tarjetas&callback=' + cbName + '&t=' + Date.now();
     document.body.appendChild(script);
   });
 }
 
 async function apiSave(gasto) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({action:'save', gasto, token:TOKEN}) });
+  await fetch(API, { method:'POST', body: JSON.stringify({action:'save', gasto}) });
   showSync(false);
 }
 
 async function apiDelete(id) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({action:'delete', id, token:TOKEN}) });
+  await fetch(API, { method:'POST', body: JSON.stringify({action:'delete', id}) });
   showSync(false);
 }
 
 async function apiSaveTarjeta(nombre) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre, token:TOKEN }) });
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre }) });
   showSync(false);
 }
 
 async function apiDeleteTarjeta(nombre) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'deleteTarjeta', nombre, token:TOKEN }) });
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'deleteTarjeta', nombre }) });
   showSync(false);
 }
 
 async function apiRenameTarjeta(viejo, nuevo) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'renameTarjeta', viejo, nuevo, token:TOKEN }) });
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'renameTarjeta', viejo, nuevo }) });
   showSync(false);
 }
 
