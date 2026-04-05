@@ -50,78 +50,60 @@ input, select { font-family: 'Inter', sans-serif; }
   user-select: none;
   pointer-events: none;
 }
-/* PIN screen */
-#pin-screen {
+/* Login screen */
+#login-screen {
   position: fixed; inset: 0; z-index: 9999;
   background: linear-gradient(135deg, #004d64 0%, #006684 100%);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
+  padding: 1.5rem;
 }
-#pin-screen.hidden { display: none; }
-.pin-dot {
-  width: 14px; height: 14px; border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.5);
-  transition: all 0.15s ease;
+#login-screen.hidden { display: none; }
+.login-input {
+  width: 100%; background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius: 12px; padding: 0.85rem 1rem;
+  color: white; font-size: 0.95rem; font-family: 'Inter', sans-serif;
+  outline: none; transition: all 0.2s ease;
 }
-.pin-dot.filled {
-  background: white; border-color: white;
-  transform: scale(1.1);
+.login-input::placeholder { color: rgba(255,255,255,0.45); }
+.login-input:focus { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.18); }
+.login-input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 100px #005f7a inset;
+  -webkit-text-fill-color: white;
 }
-.pin-key {
-  width: 72px; height: 72px; border-radius: 50%;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: white; font-size: 1.5rem; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all 0.1s ease;
-  font-family: 'Manrope', sans-serif;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
+.login-btn {
+  width: 100%; background: white; color: #004d64;
+  border: none; border-radius: 12px; padding: 0.9rem;
+  font-size: 0.95rem; font-weight: 800; font-family: 'Manrope', sans-serif;
+  cursor: pointer; transition: all 0.15s ease; margin-top: 0.5rem;
 }
-.pin-key:active { background: rgba(255,255,255,0.25); transform: scale(0.93); }
-.pin-key.delete { font-size: 1.1rem; }
-@keyframes pinShake {
+.login-btn:active { transform: scale(0.97); opacity: 0.9; }
+@keyframes loginShake {
   0%,100% { transform: translateX(0); }
-  20% { transform: translateX(-10px); }
-  40% { transform: translateX(10px); }
-  60% { transform: translateX(-8px); }
-  80% { transform: translateX(8px); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
 }
-.pin-shake { animation: pinShake 0.4s ease; }
+.login-shake { animation: loginShake 0.4s ease; }
 </style>
 </head>
 <body class="bg-surface text-on-surface font-body min-h-screen pb-24 md:pb-0">
 
-<!-- PIN Screen -->
-<div id="pin-screen">
+<!-- Login Screen -->
+<div id="login-screen">
   <div style="text-align:center; margin-bottom:2.5rem;">
-    <span class="material-symbols-outlined filled" style="font-size:2.5rem;color:rgba(255,255,255,0.7);display:block;margin-bottom:0.75rem;">lock</span>
-    <p style="font-family:Manrope;font-weight:800;font-size:1.4rem;color:white;letter-spacing:-0.02em;">Gastos & Cuotas</p>
-    <p id="pin-subtitle" style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:0.35rem;font-family:Inter;">Ingresá tu PIN para continuar</p>
+    <span class="material-symbols-outlined filled" style="font-size:2.5rem;color:rgba(255,255,255,0.7);display:block;margin-bottom:0.75rem;">account_balance_wallet</span>
+    <p style="font-family:Manrope;font-weight:800;font-size:1.5rem;color:white;letter-spacing:-0.02em;">Gastos & Cuotas</p>
+    <p style="font-size:0.8rem;color:rgba(255,255,255,0.55);margin-top:0.35rem;font-family:Inter;">Ingresá tus datos para continuar</p>
   </div>
-  <!-- Dots -->
-  <div id="pin-dots" style="display:flex;gap:1rem;margin-bottom:2.5rem;">
-    <div class="pin-dot" id="dot-0"></div>
-    <div class="pin-dot" id="dot-1"></div>
-    <div class="pin-dot" id="dot-2"></div>
-    <div class="pin-dot" id="dot-3"></div>
+  <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:0.75rem;">
+    <input id="login-user" class="login-input" type="text" placeholder="Usuario" autocomplete="username" autocapitalize="none"/>
+    <input id="login-pass" class="login-input" type="password" placeholder="Contraseña" autocomplete="current-password"/>
+    <p id="login-error" style="display:none;font-size:0.78rem;color:rgba(255,120,120,0.95);text-align:center;font-family:Inter;margin-top:0.25rem;"></p>
+    <button class="login-btn" onclick="doLogin()" id="login-btn">Ingresar</button>
   </div>
-  <!-- Keypad -->
-  <div id="pin-keypad" style="display:grid;grid-template-columns:repeat(3,72px);gap:1rem;">
-    <button class="pin-key" onclick="pinPress('1')">1</button>
-    <button class="pin-key" onclick="pinPress('2')">2</button>
-    <button class="pin-key" onclick="pinPress('3')">3</button>
-    <button class="pin-key" onclick="pinPress('4')">4</button>
-    <button class="pin-key" onclick="pinPress('5')">5</button>
-    <button class="pin-key" onclick="pinPress('6')">6</button>
-    <button class="pin-key" onclick="pinPress('7')">7</button>
-    <button class="pin-key" onclick="pinPress('8')">8</button>
-    <button class="pin-key" onclick="pinPress('9')">9</button>
-    <div></div>
-    <button class="pin-key" onclick="pinPress('0')">0</button>
-    <button class="pin-key delete" onclick="pinDelete()">&#9003;</button>
-  </div>
-  <p id="pin-lock-msg" style="display:none;margin-top:1.5rem;font-size:0.78rem;color:rgba(255,100,100,0.9);font-family:Inter;text-align:center;"></p>
 </div>
 
 
@@ -138,9 +120,15 @@ input, select { font-family: 'Inter', sans-serif; }
       <span id="sync-indicator" class="hidden items-center gap-1.5 text-xs font-bold text-outline uppercase tracking-widest">
         <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>Sync...
       </span>
-      <button onclick="openConfig()" class="text-slate-400 hover:text-primary transition-colors">
-        <span class="material-symbols-outlined text-xl">settings</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <span id="header-username" class="text-xs font-bold text-primary hidden md:block"></span>
+        <button onclick="openConfig()" class="text-slate-400 hover:text-primary transition-colors">
+          <span class="material-symbols-outlined text-xl">settings</span>
+        </button>
+        <button onclick="logout()" class="text-slate-400 hover:text-red-500 transition-colors" title="Cerrar sesión">
+          <span class="material-symbols-outlined text-xl">logout</span>
+        </button>
+      </div>
     </div>
   </div>
 </header>
@@ -518,7 +506,7 @@ function setNecesario(val) {
 }
 
 // ── Config ──
-const API = 'https://script.google.com/macros/s/AKfycbyLp_SZIFp9NoL8Smq7ce2Q9MT1fXApDN9KeNWAGJgfZdannXLeu-CA7cv1cmN9xaOV/exec';
+const API = 'https://script.google.com/macros/s/AKfycbz1fL7RjYhK3YjXbV2JCHsNZeV8y9O33mD-1LiJyTRvYGqVuSIzcesDXUoYk-CQKdpN/exec';
 const TARJETAS_DEFAULT = ['BBVA (Vieja)','BBVA Visa Black','Mastercard Black','Mercadopago','Deudas / Amigos'];
 const TCARD_COLORS = ['bg-indigo-100 text-indigo-800','bg-blue-100 text-blue-800','bg-pink-100 text-pink-800','bg-emerald-100 text-emerald-700','bg-amber-100 text-amber-800','bg-purple-100 text-purple-800','bg-rose-100 text-rose-800','bg-teal-100 text-teal-800'];
 let TARJETAS = [...TARJETAS_DEFAULT];
@@ -529,7 +517,12 @@ let chartMensual = null;
 let budgetLimit = 0; // 0 = sin límite
 
 function loadBudget() {
-  const saved = localStorage.getItem('budget_limit');
+  loadBudgetForUser();
+}
+
+function loadBudgetForUser() {
+  const key = 'budget_limit_' + (currentUser ? currentUser.usuario : 'default');
+  const saved = localStorage.getItem(key);
   budgetLimit = saved ? parseFloat(saved) : 0;
   updateBudgetCurrentLabel();
 }
@@ -538,7 +531,8 @@ function saveBudget() {
   const val = parseFloat(document.getElementById('budget-input').value);
   if (!val || val <= 0) { alert('Ingresá un monto válido'); return; }
   budgetLimit = val;
-  localStorage.setItem('budget_limit', val);
+  const key = 'budget_limit_' + (currentUser ? currentUser.usuario : 'default');
+  localStorage.setItem(key, val);
   updateBudgetCurrentLabel();
   render();
   alert('✅ Presupuesto guardado: ' + fmtPeso(val));
@@ -546,7 +540,8 @@ function saveBudget() {
 
 function clearBudget() {
   budgetLimit = 0;
-  localStorage.removeItem('budget_limit');
+  const key = 'budget_limit_' + (currentUser ? currentUser.usuario : 'default');
+  localStorage.removeItem(key);
   document.getElementById('budget-input').value = '';
   updateBudgetCurrentLabel();
   render();
@@ -728,18 +723,20 @@ function loadData() {
     const script = document.createElement('script');
     window[cbName] = function(raw) {
       delete window[cbName]; document.body.removeChild(script);
-      gastos = raw.map(r => ({
-        id: String(r.id), desc: String(r.desc), tarjeta: String(r.tarjeta),
-        monto: parseFloat(r.monto)||0, mesInicio: parsearMesInicio(r.mesInicio),
-        cuotaActual: parseInt(r.cuotaActual)||1, cuotaTotal: parseInt(r.cuotaTotal)||1,
-        impuesto: r.impuesto===true||r.impuesto==='true'||r.impuesto==='TRUE',
-        categoria: String(r.categoria||'Otros'),
-        necesario: r.necesario===true||r.necesario==='true'||r.necesario==='TRUE',
-      }));
+      gastos = raw
+        .filter(r => !r.usuario || String(r.usuario).toLowerCase() === currentUser.usuario)
+        .map(r => ({
+          id: String(r.id), desc: String(r.desc), tarjeta: String(r.tarjeta),
+          monto: parseFloat(r.monto)||0, mesInicio: parsearMesInicio(r.mesInicio),
+          cuotaActual: parseInt(r.cuotaActual)||1, cuotaTotal: parseInt(r.cuotaTotal)||1,
+          impuesto: r.impuesto===true||r.impuesto==='true'||r.impuesto==='TRUE',
+          categoria: String(r.categoria||'Otros'),
+          necesario: r.necesario===true||r.necesario==='true'||r.necesario==='TRUE',
+        }));
       resolve();
     };
     script.onerror = () => { delete window[cbName]; document.body.removeChild(script); alert('No se pudo conectar. Revisá tu conexión.'); resolve(); };
-    script.src = API + '?callback=' + cbName + '&t=' + Date.now();
+    script.src = API + '?usuario=' + currentUser.usuario + '&callback=' + cbName + '&t=' + Date.now();
     document.body.appendChild(script);
   });
 }
@@ -750,11 +747,19 @@ function loadTarjetas() {
     const script = document.createElement('script');
     window[cbName] = function(raw) {
       delete window[cbName]; document.body.removeChild(script);
-      if (Array.isArray(raw) && raw.length) TARJETAS = raw;
+      if (Array.isArray(raw) && raw.length) {
+        // Si son objetos con usuario, filtrar; si son strings, usar todos
+        if (typeof raw[0] === 'object' && raw[0].usuario) {
+          const filtered = raw.filter(t => String(t.usuario).toLowerCase() === currentUser.usuario).map(t => t.nombre);
+          TARJETAS = filtered.length ? filtered : [...TARJETAS_DEFAULT];
+        } else {
+          TARJETAS = raw;
+        }
+      }
       resolve();
     };
     script.onerror = () => { delete window[cbName]; document.body.removeChild(script); resolve(); };
-    script.src = API + '?tipo=tarjetas&callback=' + cbName + '&t=' + Date.now();
+    script.src = API + '?tipo=tarjetas&usuario=' + currentUser.usuario + '&callback=' + cbName + '&t=' + Date.now();
     document.body.appendChild(script);
   });
 }
@@ -773,7 +778,7 @@ async function apiDelete(id) {
 
 async function apiSaveTarjeta(nombre) {
   showSync(true);
-  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre }) });
+  await fetch(API, { method:'POST', body: JSON.stringify({ action:'saveTarjeta', nombre, usuario:currentUser.usuario }) });
   showSync(false);
 }
 
@@ -1236,7 +1241,7 @@ async function saveGasto() {
   const cuotaActual = parseInt(document.getElementById('f-cuota-actual').value)||1;
   const cuotaTotal = parseInt(document.getElementById('f-cuota-total').value)||1;
   const mesInicioReal = mesInicioDesdeCuotaActual(mes, cuotaActual);
-  const data = { desc, tarjeta:document.getElementById('f-tarjeta').value, monto, mesInicio:mesInicioReal, cuotaActual, cuotaTotal, impuesto:impuestoActivo, categoria:document.getElementById('f-categoria').value, necesario:necesarioActivo };
+  const data = { desc, tarjeta:document.getElementById('f-tarjeta').value, monto, mesInicio:mesInicioReal, cuotaActual, cuotaTotal, impuesto:impuestoActivo, categoria:document.getElementById('f-categoria').value, necesario:necesarioActivo, usuario:currentUser.usuario };
   if (editingId) {
     const idx = gastos.findIndex(x=>x.id===editingId);
     if (idx>=0) gastos[idx]={...gastos[idx],...data};
@@ -1332,132 +1337,79 @@ function changeMonth(d) {
 }
 
 
-// ── PIN ──
-const CORRECT_PIN = '1234'; // ← CAMBIÁ ESTO por tu PIN real
-const MAX_ATTEMPTS = 3;
-const LOCK_DURATION = 5 * 60 * 1000; // 5 minutos en ms
+// ── LOGIN MULTIUSUARIO ──
+// Usuarios definidos acá — cambiá las contraseñas
+const USUARIOS = [
+  { usuario: 'sebastian', password: 'seba123', nombre: 'Sebastián' },
+  { usuario: 'fernanda',  password: 'fer123',  nombre: 'Fernanda'  },
+];
 
-let pinValue = '';
-let pinAttempts = 0;
-let pinLocked = false;
+let currentUser = null; // usuario logueado
 
-function initPin() {
-  // Verificar si está bloqueado
-  const lockUntil = localStorage.getItem('pin_lock_until');
-  if (lockUntil) {
-    const remaining = parseInt(lockUntil) - Date.now();
-    if (remaining > 0) {
-      pinLocked = true;
-      showLockCountdown(remaining);
-      return;
-    } else {
-      localStorage.removeItem('pin_lock_until');
-      localStorage.removeItem('pin_attempts');
-    }
+function initLogin() {
+  const saved = sessionStorage.getItem('usuario_ok');
+  if (saved) {
+    const u = USUARIOS.find(x => x.usuario === saved);
+    if (u) { currentUser = u; hideLoginScreen(); return; }
   }
-  // Verificar si ya estaba autenticado en esta sesión
-  if (sessionStorage.getItem('pin_ok') === 'true') {
-    document.getElementById('pin-screen').classList.add('hidden');
-  }
-  pinAttempts = parseInt(localStorage.getItem('pin_attempts') || '0');
+  // Enter en inputs
+  document.getElementById('login-pass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('login-user').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('login-pass').focus();
+  });
 }
 
-function pinPress(digit) {
-  if (pinLocked || pinValue.length >= 4) return;
-  pinValue += digit;
-  updateDots();
-  if (pinValue.length === 4) {
-    setTimeout(checkPin, 150);
-  }
-}
+function doLogin() {
+  const usuario = document.getElementById('login-user').value.trim().toLowerCase();
+  const password = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  const formEl = document.querySelector('#login-screen > div:last-child');
 
-function pinDelete() {
-  if (pinLocked) return;
-  pinValue = pinValue.slice(0, -1);
-  updateDots();
-}
-
-function updateDots() {
-  for (let i = 0; i < 4; i++) {
-    const dot = document.getElementById('dot-' + i);
-    if (i < pinValue.length) dot.classList.add('filled');
-    else dot.classList.remove('filled');
-  }
-}
-
-function checkPin() {
-  if (pinValue === CORRECT_PIN) {
-    // Correcto
-    pinAttempts = 0;
-    localStorage.removeItem('pin_attempts');
-    sessionStorage.setItem('pin_ok', 'true');
-    document.getElementById('pin-screen').classList.add('hidden');
+  const match = USUARIOS.find(u => u.usuario === usuario && u.password === password);
+  if (match) {
+    currentUser = match;
+    sessionStorage.setItem('usuario_ok', match.usuario);
+    hideLoginScreen();
   } else {
-    // Incorrecto
-    pinAttempts++;
-    localStorage.setItem('pin_attempts', pinAttempts);
-    pinValue = '';
-    updateDots();
-
-    const dotsEl = document.getElementById('pin-dots');
-    dotsEl.classList.add('pin-shake');
-    setTimeout(() => dotsEl.classList.remove('pin-shake'), 400);
-
-    const remaining = MAX_ATTEMPTS - pinAttempts;
-    if (remaining <= 0) {
-      // Bloquear
-      const lockUntil = Date.now() + LOCK_DURATION;
-      localStorage.setItem('pin_lock_until', lockUntil);
-      localStorage.removeItem('pin_attempts');
-      pinAttempts = 0;
-      pinLocked = true;
-      showLockCountdown(LOCK_DURATION);
-    } else {
-      document.getElementById('pin-subtitle').textContent = 
-        'PIN incorrecto. ' + remaining + ' intento' + (remaining !== 1 ? 's' : '') + ' restante' + (remaining !== 1 ? 's' : '');
-      document.getElementById('pin-subtitle').style.color = 'rgba(255,150,150,0.9)';
-    }
+    errEl.style.display = 'block';
+    errEl.textContent = 'Usuario o contraseña incorrectos';
+    document.getElementById('login-pass').value = '';
+    formEl.classList.add('login-shake');
+    setTimeout(() => formEl.classList.remove('login-shake'), 400);
   }
 }
 
-function showLockCountdown(ms) {
-  const keypad = document.getElementById('pin-keypad');
-  const lockMsg = document.getElementById('pin-lock-msg');
-  const subtitle = document.getElementById('pin-subtitle');
-  keypad.style.opacity = '0.3';
-  keypad.style.pointerEvents = 'none';
-  lockMsg.style.display = 'block';
-  subtitle.textContent = 'Demasiados intentos fallidos';
-  subtitle.style.color = 'rgba(255,100,100,0.9)';
-
-  const interval = setInterval(() => {
-    const lockUntil = parseInt(localStorage.getItem('pin_lock_until') || '0');
-    const remaining = lockUntil - Date.now();
-    if (remaining <= 0) {
-      clearInterval(interval);
-      pinLocked = false;
-      keypad.style.opacity = '1';
-      keypad.style.pointerEvents = 'auto';
-      lockMsg.style.display = 'none';
-      subtitle.textContent = 'Ingresá tu PIN para continuar';
-      subtitle.style.color = 'rgba(255,255,255,0.6)';
-      localStorage.removeItem('pin_lock_until');
-    } else {
-      const mins = Math.floor(remaining / 60000);
-      const secs = Math.floor((remaining % 60000) / 1000);
-      lockMsg.textContent = 'Bloqueado por ' + mins + ':' + String(secs).padStart(2,'0');
-    }
-  }, 1000);
+function hideLoginScreen() {
+  document.getElementById('login-screen').classList.add('hidden');
+  updateUserHeader();
+  // Mostrar nombre en header mobile también
+  const el = document.getElementById('header-username');
+  if (el) el.classList.remove('hidden');
+  // Cargar datos del usuario
+  loadBudgetForUser();
+  loadTarjetas().then(() => loadData()).then(() => render());
 }
 
-// Soporte teclado físico
-document.addEventListener('keydown', (e) => {
-  if (document.getElementById('pin-screen').classList.contains('hidden')) return;
-  if (e.key >= '0' && e.key <= '9') pinPress(e.key);
-  if (e.key === 'Backspace') pinDelete();
-});
+function updateUserHeader() {
+  if (!currentUser) return;
+  const headerName = document.getElementById('header-username');
+  if (headerName) headerName.textContent = currentUser.nombre;
+}
 
-initPin();
+function logout() {
+  sessionStorage.removeItem('usuario_ok');
+  currentUser = null;
+  gastos = [];
+  TARJETAS = [...TARJETAS_DEFAULT];
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+initLogin();
 
 // ── Init ──
 const now = new Date();
@@ -1465,7 +1417,11 @@ currentYear = now.getFullYear();
 currentMonth = now.getMonth()+1;
 document.getElementById('list-container').innerHTML = `<div class="text-center py-16 text-outline"><span class="material-symbols-outlined text-4xl block mb-2 animate-pulse">hourglass_top</span><p class="text-sm">Cargando datos...</p></div>`;
 loadBudget();
-loadTarjetas().then(() => loadData()).then(() => render());
+// Los datos se cargan después del login en hideLoginScreen
+// Si ya hay sesión activa, initLogin() habrá seteado currentUser
+if (currentUser) {
+  loadTarjetas().then(() => loadData()).then(() => render());
+}
 
 document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
 document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
