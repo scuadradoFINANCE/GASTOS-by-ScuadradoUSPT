@@ -66,7 +66,7 @@ input, select { font-family: 'Inter', sans-serif; }
   color: white; font-size: 0.95rem; font-family: 'Inter', sans-serif;
   outline: none; transition: all 0.2s ease;
 }
-.login-input::placeholder { color: rgba(255,255,255,0.45); }
+.login-input::placeholder { color: rgba(255,255,255,0.65); }
 .login-input:focus { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.18); }
 .login-input:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 100px #005f7a inset;
@@ -100,7 +100,12 @@ input, select { font-family: 'Inter', sans-serif; }
   </div>
   <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:0.75rem;">
     <input id="login-user" class="login-input" type="text" placeholder="Usuario" autocomplete="username" autocapitalize="none"/>
-    <input id="login-pass" class="login-input" type="password" placeholder="Contraseña" autocomplete="current-password"/>
+    <div style="position:relative;width:100%;">
+  <input id="login-pass" class="login-input" type="password" placeholder="Contraseña" autocomplete="current-password" style="padding-right:3rem;"/>
+  <button type="button" onclick="togglePassVisibility()" style="position:absolute;right:0.9rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;">
+    <span id="pass-eye" class="material-symbols-outlined" style="color:rgba(255,255,255,0.65);font-size:1.25rem;">visibility_off</span>
+  </button>
+</div>
     <p id="login-error" style="display:none;font-size:0.78rem;color:rgba(255,120,120,0.95);text-align:center;font-family:Inter;margin-top:0.25rem;"></p>
     <button class="login-btn" onclick="doLogin()" id="login-btn">Ingresar</button>
   </div>
@@ -1362,6 +1367,18 @@ function initLogin() {
 }
 
 function doLogin() {
+function togglePassVisibility() {
+  const input = document.getElementById('login-pass');
+  const eye = document.getElementById('pass-eye');
+  if (input.type === 'password') {
+    input.type = 'text';
+    eye.textContent = 'visibility';
+  } else {
+    input.type = 'password';
+    eye.textContent = 'visibility_off';
+  }
+}
+  
   const usuario = document.getElementById('login-user').value.trim().toLowerCase();
   const password = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
