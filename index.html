@@ -1366,7 +1366,6 @@ function initLogin() {
   });
 }
 
-function doLogin() {
 function togglePassVisibility() {
   const input = document.getElementById('login-pass');
   const eye = document.getElementById('pass-eye');
@@ -1379,6 +1378,7 @@ function togglePassVisibility() {
   }
 }
   
+function doLogin() {
   const usuario = document.getElementById('login-user').value.trim().toLowerCase();
   const password = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
