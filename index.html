@@ -87,6 +87,17 @@ input, select { font-family: 'Inter', sans-serif; }
   80% { transform: translateX(6px); }
 }
 .login-shake { animation: loginShake 0.4s ease; }
+
+/* USD indicator */
+.usd-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 9px; font-weight: 700; padding: 2px 6px;
+  background: #fef3c7; color: #92400e; border-radius: 9999px;
+  letter-spacing: 0.03em;
+}
+@media (prefers-color-scheme: dark) {
+  .usd-chip { background: #78350f; color: #fde68a; }
+}
 </style>
 </head>
 <body class="bg-surface text-on-surface font-body min-h-screen pb-24 md:pb-0">
@@ -178,6 +189,11 @@ input, select { font-family: 'Inter', sans-serif; }
               <span class="material-symbols-outlined text-on-surface-variant text-lg">chevron_right</span>
             </button>
           </div>
+        </div>
+        <div id="dolar-chip" class="hidden items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 cursor-pointer hover:bg-amber-100 transition-colors" onclick="fetchDolarOficial(true)" title="Clic para actualizar">
+          <span class="text-[10px] font-bold text-amber-700">USD</span>
+          <span id="dolar-chip-val" class="text-[10px] font-extrabold text-amber-900">—</span>
+          <span class="material-symbols-outlined text-amber-500" style="font-size:12px;">refresh</span>
         </div>
       </div>
 
@@ -380,8 +396,18 @@ input, select { font-family: 'Inter', sans-serif; }
           <select id="f-tarjeta" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors bg-white"></select>
         </div>
         <div>
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Monto cuota ($)</label>
-          <input id="f-monto" type="number" placeholder="0" min="0" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors">
+          <div class="flex items-center justify-between mb-1.5">
+            <label id="monto-label" class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Monto cuota ($)</label>
+            <div class="flex rounded overflow-hidden border border-outline-variant">
+              <button type="button" id="btn-ars" onclick="setMoneda('ARS')" class="px-2 py-0.5 text-[9px] font-bold transition-all bg-primary text-white">ARS</button>
+              <button type="button" id="btn-usd" onclick="setMoneda('USD')" class="px-2 py-0.5 text-[9px] font-bold transition-all text-on-surface-variant">USD</button>
+            </div>
+          </div>
+          <input id="f-monto" type="number" placeholder="0" min="0" class="w-full border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors" oninput="updateConversionPreview()">
+          <div id="usd-conversion" class="hidden mt-1.5 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+            <p class="text-[10px] font-semibold text-amber-800">≈ <span id="usd-conv-val" class="font-extrabold">$0</span> ARS por cuota</p>
+            <p class="text-[9px] text-amber-600 mt-0.5">Dólar oficial venta: <span id="usd-rate-preview">—</span></p>
+          </div>
         </div>
       </div>
       <div class="grid grid-cols-3 gap-3">
@@ -511,12 +537,71 @@ function setNecesario(val) {
 }
 
 // ── Config ──
-const API = 'https://script.google.com/macros/s/AKfycbz1fL7RjYhK3YjXbV2JCHsNZeV8y9O33mD-1LiJyTRvYGqVuSIzcesDXUoYk-CQKdpN/exec';
+const API = 'https://script.google.com/macros/s/AKfycbytsAtzUoNP3z7s7MBbgxNqPHeTz2l7rZD5GmPTOr61jMgH9OEBZq8O-3KIPl2pR_Su/exec';
 const TARJETAS_DEFAULT = ['BBVA (Vieja)','BBVA Visa Black','Mastercard Black','Mercadopago','Deudas / Amigos'];
 const TCARD_COLORS = ['bg-indigo-100 text-indigo-800','bg-blue-100 text-blue-800','bg-pink-100 text-pink-800','bg-emerald-100 text-emerald-700','bg-amber-100 text-amber-800','bg-purple-100 text-purple-800','bg-rose-100 text-rose-800','bg-teal-100 text-teal-800'];
 let TARJETAS = [...TARJETAS_DEFAULT];
 let gastos = [], currentYear, currentMonth, editingId = null, activeFilter = 'Todos', impuestoActivo = false;
 let chartMensual = null;
+
+// ── Dólar Oficial ──
+let dolarOficial = null; // { compra, venta, fecha }
+let monedaActiva = 'ARS';
+
+async function fetchDolarOficial(forceRefresh) {
+  // Cache for 10 minutes unless forced
+  if (!forceRefresh && dolarOficial && (Date.now() - dolarOficial._ts < 600000)) return dolarOficial;
+  try {
+    const res = await fetch('https://dolarapi.com/v1/dolares/oficial');
+    const data = await res.json();
+    dolarOficial = { compra: data.compra, venta: data.venta, fecha: data.fechaActualizacion, _ts: Date.now() };
+    updateDolarChip();
+    return dolarOficial;
+  } catch(e) {
+    console.warn('Error fetching dólar:', e);
+    return dolarOficial;
+  }
+}
+
+function updateDolarChip() {
+  const chip = document.getElementById('dolar-chip');
+  const val = document.getElementById('dolar-chip-val');
+  if (dolarOficial && dolarOficial.venta) {
+    val.textContent = '$' + Math.round(dolarOficial.venta).toLocaleString('es-AR');
+    chip.classList.remove('hidden');
+    chip.classList.add('flex');
+  }
+}
+
+function setMoneda(m) {
+  monedaActiva = m;
+  const btnArs = document.getElementById('btn-ars');
+  const btnUsd = document.getElementById('btn-usd');
+  const label = document.getElementById('monto-label');
+  const conv = document.getElementById('usd-conversion');
+  if (m === 'USD') {
+    btnUsd.className = 'px-2 py-0.5 text-[9px] font-bold transition-all bg-amber-500 text-white';
+    btnArs.className = 'px-2 py-0.5 text-[9px] font-bold transition-all text-on-surface-variant';
+    label.textContent = 'Monto cuota (USD)';
+    conv.classList.remove('hidden');
+    fetchDolarOficial().then(() => updateConversionPreview());
+  } else {
+    btnArs.className = 'px-2 py-0.5 text-[9px] font-bold transition-all bg-primary text-white';
+    btnUsd.className = 'px-2 py-0.5 text-[9px] font-bold transition-all text-on-surface-variant';
+    label.textContent = 'Monto cuota ($)';
+    conv.classList.add('hidden');
+  }
+}
+
+function updateConversionPreview() {
+  if (monedaActiva !== 'USD' || !dolarOficial) return;
+  const usd = parseFloat(document.getElementById('f-monto').value) || 0;
+  const pesos = Math.round(usd * dolarOficial.venta);
+  document.getElementById('usd-conv-val').textContent = fmtPeso(pesos);
+  document.getElementById('usd-rate-preview').textContent = '$' + Math.round(dolarOficial.venta).toLocaleString('es-AR');
+}
+
+function fmtUSD(n) { return 'U$D ' + Math.round(n).toLocaleString('es-AR'); }
 
 // ── Budget (presupuesto) ──
 let budgetLimit = 0; // 0 = sin límite
@@ -737,6 +822,8 @@ function loadData() {
           impuesto: r.impuesto===true||r.impuesto==='true'||r.impuesto==='TRUE',
           categoria: String(r.categoria||'Otros'),
           necesario: r.necesario===true||r.necesario==='true'||r.necesario==='TRUE',
+          moneda: String(r.moneda||'ARS').toUpperCase(),
+          montoUSD: parseFloat(r.montoUSD)||0,
         }));
       resolve();
     };
@@ -893,6 +980,7 @@ function render() {
               <span class="text-[10px] font-bold uppercase tracking-wide ${isLast?'text-tertiary/60':'text-outline-variant'}">${isLast?'Completado':'Cuota'} ${i.cuota}/${i.cuotaTotal}</span>
               <span class="text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${catData.color}">${catData.nombre}</span>
               ${necBadge}
+              ${i.moneda==='USD'?'<span class="usd-chip">USD</span>':''}
               ${i.impuesto?'<span class="text-[9px] px-1.5 py-0.5 bg-surface-high rounded text-outline">+1%</span>':''}
             </div>
           </div>
@@ -900,6 +988,7 @@ function render() {
         <div class="flex items-center gap-3 shrink-0">
           <div class="text-right">
             <p class="font-headline font-extrabold text-base ${isLast?'text-tertiary':'text-primary'}">${fmtPeso(mImp)}</p>
+            ${i.moneda==='USD'&&i.montoUSD?`<p class="text-[10px] font-bold text-amber-700">${fmtUSD(i.montoUSD)}</p>`:''}
             ${i.impuesto?`<p class="text-[10px] text-outline">${fmtPeso(i.monto)} base</p>`:''}
           </div>
           ${isLast
@@ -1183,6 +1272,7 @@ function openModal() {
   setNecesario(true);
   impuestoActivo = false;
   updateImpuestoBtn();
+  setMoneda('ARS');
   document.getElementById('edit-actions').classList.add('hidden');
   showOverlay('overlay', true);
   setTimeout(()=>document.getElementById('f-desc').focus(),200);
@@ -1205,6 +1295,11 @@ function editGasto(id) {
   setNecesario(g.necesario !== false);
   impuestoActivo = g.impuesto;
   updateImpuestoBtn();
+  setMoneda(g.moneda === 'USD' ? 'USD' : 'ARS');
+  if (g.moneda === 'USD' && g.montoUSD) {
+    document.getElementById('f-monto').value = g.montoUSD;
+    updateConversionPreview();
+  }
   document.getElementById('edit-actions').classList.remove('hidden');
   showOverlay('overlay', true);
 }
@@ -1240,13 +1335,24 @@ function updateImpuestoBtn() {
 
 async function saveGasto() {
   const desc = document.getElementById('f-desc').value.trim();
-  const monto = parseFloat(document.getElementById('f-monto').value);
+  let montoInput = parseFloat(document.getElementById('f-monto').value);
   const mes = document.getElementById('f-mes').value.trim();
-  if (!desc||!monto||!parseMes(mes)) { alert('Completá descripción, monto y mes (MM/AAAA)'); return; }
+  if (!desc||!montoInput||!parseMes(mes)) { alert('Completá descripción, monto y mes (MM/AAAA)'); return; }
+
+  // Handle USD → convert to ARS for storage
+  let montoARS = montoInput;
+  let montoUSD = 0;
+  const moneda = monedaActiva;
+  if (moneda === 'USD') {
+    if (!dolarOficial || !dolarOficial.venta) { alert('No se pudo obtener la cotización del dólar. Intentá de nuevo.'); return; }
+    montoUSD = montoInput;
+    montoARS = Math.round(montoInput * dolarOficial.venta);
+  }
+
   const cuotaActual = parseInt(document.getElementById('f-cuota-actual').value)||1;
   const cuotaTotal = parseInt(document.getElementById('f-cuota-total').value)||1;
   const mesInicioReal = mesInicioDesdeCuotaActual(mes, cuotaActual);
-  const data = { desc, tarjeta:document.getElementById('f-tarjeta').value, monto, mesInicio:mesInicioReal, cuotaActual, cuotaTotal, impuesto:impuestoActivo, categoria:document.getElementById('f-categoria').value, necesario:necesarioActivo, usuario:currentUser.usuario };
+  const data = { desc, tarjeta:document.getElementById('f-tarjeta').value, monto:montoARS, mesInicio:mesInicioReal, cuotaActual, cuotaTotal, impuesto:impuestoActivo, categoria:document.getElementById('f-categoria').value, necesario:necesarioActivo, usuario:currentUser.usuario, moneda, montoUSD };
   if (editingId) {
     const idx = gastos.findIndex(x=>x.id===editingId);
     if (idx>=0) gastos[idx]={...gastos[idx],...data};
@@ -1406,6 +1512,7 @@ function hideLoginScreen() {
   if (el) el.classList.remove('hidden');
   // Cargar datos del usuario
   loadBudgetForUser();
+  fetchDolarOficial();
   loadTarjetas().then(() => loadData()).then(() => render());
 }
 
@@ -1437,6 +1544,7 @@ loadBudget();
 // Los datos se cargan después del login en hideLoginScreen
 // Si ya hay sesión activa, initLogin() habrá seteado currentUser
 if (currentUser) {
+  fetchDolarOficial();
   loadTarjetas().then(() => loadData()).then(() => render());
 }
 
