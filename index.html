@@ -910,7 +910,6 @@ function render() {
   document.getElementById('sum-usd-card').classList.toggle('hidden', usdItems.length===0);
   document.getElementById('sum-imp').textContent = fmtPeso(totalImp);
   document.getElementById('sum-imp-extra').textContent = '+' + fmtPeso(totalImp-total) + ' en sellos';
-  document.getElementById('sum-last').textContent = lastCount;
 
   // Budget UI
   renderBudgetUI(totalImp);
