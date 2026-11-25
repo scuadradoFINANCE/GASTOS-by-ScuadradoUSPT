@@ -230,21 +230,19 @@ input, select { font-family: 'Inter', sans-serif; }
       <!-- Summary cards -->
       <div class="grid grid-cols-3 gap-3">
         <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-primary">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Base</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total Pesos</p>
           <p id="sum-total" class="font-headline font-extrabold text-xl text-primary mt-2">$0</p>
           <p id="sum-items" class="text-[10px] text-outline mt-1">0 ítems</p>
+        </div>
+        <div id="sum-usd-card" class="bg-amber-50 p-4 rounded-xl shadow-sm border-l-4 border-amber-400">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-amber-700">Total USD</p>
+          <p id="sum-usd" class="font-headline font-extrabold text-xl text-amber-900 mt-2">U$D 0</p>
+          <p id="sum-usd-ars" class="text-[10px] text-amber-600 mt-1">≈ $0 ARS</p>
         </div>
         <div class="bg-surface-white p-4 rounded-xl shadow-sm border-l-4 border-outline-variant">
           <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Con Impuesto</p>
           <p id="sum-imp" class="font-headline font-extrabold text-xl text-on-surface mt-2">$0</p>
           <p id="sum-imp-extra" class="text-[10px] text-outline mt-1">+$0</p>
-        </div>
-        <div class="bg-emerald-50 p-4 rounded-xl shadow-sm border-l-4 border-tertiary">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-tertiary">Últimas</p>
-          <div class="flex items-center justify-between mt-2">
-            <p id="sum-last" class="font-headline font-extrabold text-xl text-tertiary">0</p>
-            <span class="material-symbols-outlined filled text-tertiary text-lg">task_alt</span>
-          </div>
         </div>
       </div>
 
@@ -500,6 +498,7 @@ const CATEGORIAS = [
   { nombre:'Salud',        emoji:'🏥', necesario:true,  color:'bg-green-100 text-green-700' },
   { nombre:'Transporte',   emoji:'🚗', necesario:true,  color:'bg-cyan-100 text-cyan-800' },
   { nombre:'Alimentación', emoji:'🍔', necesario:true,  color:'bg-orange-100 text-orange-800' },
+  { nombre:'Viajes',       emoji:'✈️', necesario:false, color:'bg-amber-100 text-amber-800' },
   { nombre:'Ocio',         emoji:'🎮', necesario:false, color:'bg-purple-100 text-purple-800' },
   { nombre:'Ropa',         emoji:'👕', necesario:false, color:'bg-pink-100 text-pink-800' },
   { nombre:'Otros',        emoji:'📦', necesario:false, color:'bg-slate-100 text-slate-600' },
@@ -896,11 +895,19 @@ function showSync(on) {
 function render() {
   document.getElementById('month-label').textContent = monthName(currentMonth, currentYear);
   const allItems = getActiveItems();
+  const arsItems = allItems.filter(i=>i.moneda!=='USD');
+  const usdItems = allItems.filter(i=>i.moneda==='USD');
+  const totalARS = arsItems.reduce((s,i)=>s+i.monto,0);
+  const totalUSD = usdItems.reduce((s,i)=>s+i.montoUSD,0);
+  const totalUSD_ars = usdItems.reduce((s,i)=>s+i.monto,0);
   const total = allItems.reduce((s,i)=>s+i.monto,0);
   const totalImp = allItems.reduce((s,i)=>s+(i.impuesto?i.monto*1.01:i.monto),0);
   const lastCount = allItems.filter(i=>i.cuota===i.cuotaTotal).length;
-  document.getElementById('sum-total').textContent = fmtPeso(total);
-  document.getElementById('sum-items').textContent = allItems.length + ' ítem' + (allItems.length!==1?'s':'');
+  document.getElementById('sum-total').textContent = fmtPeso(totalARS);
+  document.getElementById('sum-items').textContent = arsItems.length + ' ítem' + (arsItems.length!==1?'s':'');
+  document.getElementById('sum-usd').textContent = fmtUSD(totalUSD);
+  document.getElementById('sum-usd-ars').textContent = '≈ ' + fmtPeso(totalUSD_ars) + ' ARS';
+  document.getElementById('sum-usd-card').classList.toggle('hidden', usdItems.length===0);
   document.getElementById('sum-imp').textContent = fmtPeso(totalImp);
   document.getElementById('sum-imp-extra').textContent = '+' + fmtPeso(totalImp-total) + ' en sellos';
   document.getElementById('sum-last').textContent = lastCount;
